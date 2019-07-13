@@ -2152,7 +2152,6 @@ ADD_EXECUTABLE(igvc-firmware
   mbed-os/usb/device/utilities/events/TaskBase.h
   mbed-os/usb/device/utilities/events/TaskQueue.h
   mbed_config.h
-  stats_report.h
   ${PROTO_SRCS} ${PROTO_HDRS}
   )
 SET_TARGET_PROPERTIES(igvc-firmware PROPERTIES ENABLE_EXPORTS 1)
