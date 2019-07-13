@@ -1,0 +1,9 @@
+[submodule "mbed-os"]
+	path = mbed-os
+	url = https://github.com/ARMmbed/mbed-os.git
+[submodule "flatbuffers"]
+	path = flatbuffers
+	url = https://github.com/google/flatbuffers.git
+[submodule "nanopb"]
+	path = nanopb
+	url = https://github.com/nanopb/nanopb
