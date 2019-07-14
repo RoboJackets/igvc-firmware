@@ -1,7 +1,7 @@
 #include "mbed.h"
 
 #include <cstring>
-#include <stdlib.h>
+#include <cstdlib>
 #include <string>
 
 #define DEBUG false
@@ -18,23 +18,23 @@
 #define TIMEOUT_MS 50  // timeout for blocking read operations
 
 /* hardware definitions */
-Timer timer;
-Serial serial(p13, NC, 9600);
+Timer g_timer;
+Serial g_serial(p13, NC, 9600);
 
 /* mbed pin definitions */
-DigitalOut myLED1(LED1);
-DigitalOut myLED2(LED2);
-DigitalOut myLED3(LED3);
-DigitalOut myLED4(LED4);
-DigitalOut boardLED(p8);
-DigitalOut eStopLight(p11);
-DigitalIn eStopStatus(p15);
+DigitalOut g_my_led1(LED1);
+DigitalOut g_my_led2(LED2);
+DigitalOut g_my_le_d3(LED3);
+DigitalOut g_my_le_d4(LED4);
+DigitalOut g_board_led(p8);
+DigitalOut g_e_stop_light(p11);
+DigitalIn g_e_stop_status(p15);
 
-InterruptIn encoderLeftPinA(p24);
-DigitalIn encoderLeftPinB(p23);
-InterruptIn encoderRightPinA(p26);
-DigitalIn encoderRightPinB(p25);
-AnalogIn battery(p19);
+InterruptIn g_encoder_left_pin_a(p24);
+DigitalIn g_encoder_left_pin_b(p23);
+InterruptIn g_encoder_right_pin_a(p26);
+DigitalIn g_encoder_right_pin_b(p25);
+AnalogIn g_battery(p19);
 
 struct SpeedPair {
   unsigned char left;
@@ -52,63 +52,63 @@ void bothMotorStop();
 void triggerEstop();
 
 /* desired motor speed (as specified by the client) */
-float desiredSpeedL = 0;
-float desiredSpeedR = 0;
+float g_desired_speed_l = 0;
+float g_desired_speed_r = 0;
 
 /* actual motor speeds */
-float actualSpeedL = 0;
-float actualSpeedR = 0;
+float g_actual_speed_l = 0;
+float g_actual_speed_r = 0;
 
 /* PID calculation values */
-long lastCmdTime = 0;
-int lastLoopTime = 0;
-float ErrorL = 0;
-float ErrorR = 0;
-float dErrorL = 0;
-float dErrorR = 0;
-float iErrorL = 0;
-float iErrorR = 0;
-float dT_sec = 0;
-float lastErrorL = 0;
-float lastErrorR = 0;
-float actual_speed_last_l = 0;
-float actual_speed_last_r = 0;
-float low_passed_pv_l = 0;
-float low_passed_pv_r = 0;
+long g_last_cmd_time = 0;
+int g_last_loop_time = 0;
+float g_error_l = 0;
+float g_error_r = 0;
+float g_d_error_l = 0;
+float g_d_error_r = 0;
+float g_i_error_l = 0;
+float g_i_error_r = 0;
+float g_d_t_sec = 0;
+float g_last_error_l = 0;
+float g_last_error_r = 0;
+float g_actual_speed_last_l = 0;
+float g_actual_speed_last_r = 0;
+float g_low_passed_pv_l = 0;
+float g_low_passed_pv_r = 0;
 
 /* PID constants */
-float P_l = 0;
-float D_l = 0;
-float P_r = 0;
-float D_r = 0;
-float I_l = 0;
-float I_r = 0;
-float Kv_l = 0;
-float Kv_r = 0;
+float g_p_l = 0;
+float g_d_l = 0;
+float g_p_r = 0;
+float g_d_r = 0;
+float g_i_l = 0;
+float g_i_r = 0;
+float g_kv_l = 0;
+float g_kv_r = 0;
 
-int dPWM_L = 0;
-int dPWM_R = 0;
-int PWM_L = 0;
-int PWM_R = 0;
-int eStopOutput;
+int g_d_pwm_l = 0;
+int g_d_pwm_r = 0;
+int g_pwm_l = 0;
+int g_pwm_r = 0;
+int g_e_stop_output;
 
 /* encoder values */
-volatile int tickDataRight = 0;
-volatile int tickDataLeft = 0;
+volatile int g_tick_data_right = 0;
+volatile int g_tick_data_left = 0;
 
 /* calculation constants */
-const double wheelCircum = 1.092;
-const double gearRatio = 32.0;
-const int ticksPerRev = 48;
-const double metersPerTick = wheelCircum / (ticksPerRev * gearRatio);
+const double g_wheel_circum = 1.092;
+const double g_gear_ratio = 32.0;
+const int g_ticks_per_rev = 48;
+const double g_meters_per_tick = g_wheel_circum / (g_ticks_per_rev * g_gear_ratio);
 
 /* estop logic */
-int estop = 1;
+int g_estop = 1;
 
 int main() {
   //    /* Read PCON register */
-  printf("PCON: 0x%x\n", *((unsigned int *)0x400FC180));
-  *(unsigned int *)0x400fc180 |= 0xf;
+//  printf("PCON: 0x%x\n", *((unsigned int *)0x400FC180));
+//  *(unsigned int *)0x400fc180 |= 0xf;
 
   /* Open the server (mbed) via the EthernetInterface class */
   printf("Setting up ethernet interface...\r\n");
@@ -127,33 +127,33 @@ int main() {
   server_socket.bind(ECHO_SERVER_PORT);
   server_socket.listen();
 
-  myLED1 = 1;
+  g_my_led1 = 1;
 
   // Set interrupt function
-  encoderLeftPinA.rise(&tickLeft);
-  encoderRightPinA.rise(&tickRight);
+  g_encoder_left_pin_a.rise(&tickLeft);
+  g_encoder_right_pin_a.rise(&tickRight);
 
   wait(0.5);
-  myLED1 = 0;
+  g_my_led1 = 0;
 
-  timer.reset();
-  timer.start();
+  g_timer.reset();
+  g_timer.start();
 
   /* Instantiage a TCP socket to serve as the client */
   TCPSocket *client;
 
   while (true) {
-    myLED2 = 1;
+    g_my_led2 = 1;
     /* wait for a new TCP Connection */
     printf("Waiting for new connection...\r\n");
     client = server_socket.accept();
-    myLED2 = 0;
+    g_my_led2 = 0;
 
     printf("accepted new client\r\n");
     SocketAddress socket_address;
     client->getpeername(&socket_address);
     printf("Connection from: %s\r\n", socket_address.get_ip_address());
-    estop = 1;
+    g_estop = 1;
 
     while (true) {
       /* read data into the buffer. This call blocks until data is read */
@@ -171,14 +171,14 @@ int main() {
         }
         wait_ms(10);
         continue;
-      } else if (n == 0) {
+      } if (n == 0) {
         printf("Client Closed Connection\n");
         break;
-      } else {
+      } 
         if (DEBUG) {
           printf("Received Request of size: %d\n", n);
         }
-      }
+      
 
       /* protobuf message to hold request from client */
       RequestMessage request = RequestMessage_init_zero;
@@ -200,17 +200,17 @@ int main() {
       parseRequest(request);
 
       /* reset the timer */
-      if (timer.read_ms() > pow(2, 20)) {
-        timer.reset();
-        lastCmdTime = 0;
+      if (g_timer.read_ms() > pow(2, 20)) {
+        g_timer.reset();
+        g_last_cmd_time = 0;
       }
 
       /* estop logic */
-      if (!eStopStatus.read()) {
+      if (g_e_stop_status.read() == 0) {
         triggerEstop();
       } else {
-        estop = 1;
-        eStopLight = 0;
+        g_estop = 1;
+        g_e_stop_light = 0;
       }
 
       /* update motor velocities with PID */
@@ -256,21 +256,21 @@ bool sendResponse(TCPSocket &client) {
   response.has_kv_l = true;
   response.has_kv_r = true;
 
-  response.p_l = static_cast<float>(P_l);
-  response.p_r = static_cast<float>(P_r);
-  response.i_l = static_cast<float>(I_l);
-  response.i_r = static_cast<float>(I_r);
-  response.d_l = static_cast<float>(D_l);
-  response.d_r = static_cast<float>(D_r);
+  response.p_l = static_cast<float>(g_p_l);
+  response.p_r = static_cast<float>(g_p_r);
+  response.i_l = static_cast<float>(g_i_l);
+  response.i_r = static_cast<float>(g_i_r);
+  response.d_l = static_cast<float>(g_d_l);
+  response.d_r = static_cast<float>(g_d_r);
 
-  response.speed_l = static_cast<float>(actualSpeedL);
-  response.speed_r = static_cast<float>(actualSpeedR);
-  response.dt_sec = static_cast<float>(dT_sec);
-  response.voltage = static_cast<float>(battery.read() * 3.3 * 521 / 51);
-  response.estop = static_cast<bool>(estop);
+  response.speed_l = static_cast<float>(g_actual_speed_l);
+  response.speed_r = static_cast<float>(g_actual_speed_r);
+  response.dt_sec = static_cast<float>(g_d_t_sec);
+  response.voltage = static_cast<float>(g_battery.read() * 3.3 * 521 / 51);
+  response.estop = static_cast<bool>(g_estop);
 
-  response.kv_l = static_cast<float>(Kv_l);
-  response.kv_r = static_cast<float>(Kv_r);
+  response.kv_l = static_cast<float>(g_kv_l);
+  response.kv_r = static_cast<float>(g_kv_r);
 
   /* encode the message */
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
@@ -292,15 +292,15 @@ bool sendResponse(TCPSocket &client) {
 
 void triggerEstop() {
   // If get 5V, since inverted, meaning disabled on motors
-  estop = 0;
-  desiredSpeedL = 0;
-  desiredSpeedR = 0;
-  PWM_L = 0;
-  PWM_R = 0;
-  iErrorL = 0;
-  iErrorR = 0;
+  g_estop = 0;
+  g_desired_speed_l = 0;
+  g_desired_speed_r = 0;
+  g_pwm_l = 0;
+  g_pwm_r = 0;
+  g_i_error_l = 0;
+  g_i_error_r = 0;
   bothMotorStop();
-  eStopLight = 1;
+  g_e_stop_light = 1;
 }
 
 /*
@@ -310,35 +310,35 @@ Update global variables using most recent client request.
 void parseRequest(const RequestMessage &req) {
   /* request contains PID values */
   if (req.has_p_l) {
-    P_l = req.p_l;
-    P_r = req.p_r;
-    D_l = req.d_l;
-    D_r = req.d_r;
-    I_l = req.i_l;
-    I_r = req.i_r;
-    Kv_l = req.kv_l;
-    Kv_r = req.kv_r;
+    g_p_l = req.p_l;
+    g_p_r = req.p_r;
+    g_d_l = req.d_l;
+    g_d_r = req.d_r;
+    g_i_l = req.i_l;
+    g_i_r = req.i_r;
+    g_kv_l = req.kv_l;
+    g_kv_r = req.kv_r;
   }
   /* request contains motor velocities */
   if (req.has_speed_l) {
-    desiredSpeedL = req.speed_l;
-    desiredSpeedR = req.speed_r;
+    g_desired_speed_l = req.speed_l;
+    g_desired_speed_r = req.speed_r;
   }
 }
 
 void tickRight() {
-  if (encoderRightPinA.read() == encoderRightPinB.read()) {
-    ++tickDataRight;
+  if (g_encoder_right_pin_a.read() == g_encoder_right_pin_b.read()) {
+    ++g_tick_data_right;
   } else {
-    --tickDataRight;
+    --g_tick_data_right;
   }
 }
 
 void tickLeft() {
-  if (encoderLeftPinA.read() == encoderLeftPinB.read()) {
-    ++tickDataLeft;
+  if (g_encoder_left_pin_a.read() == g_encoder_left_pin_b.read()) {
+    ++g_tick_data_left;
   } else {
-    --tickDataLeft;
+    --g_tick_data_left;
   }
 }
 
@@ -348,87 +348,87 @@ void tickLeft() {
 // forward
 void pid() {
   // 1: Calculate dt
-  dT_sec = (float)(timer.read_ms() - lastLoopTime) / 1000.0;
+  g_d_t_sec = static_cast<float>(g_timer.read_ms() - g_last_loop_time) / 1000.0;
 
-  if (timer.read() >= 1700) {
-    timer.reset();
-    lastLoopTime = 0;
+  if (g_timer.read() >= 1700) {
+    g_timer.reset();
+    g_last_loop_time = 0;
   }
 
-  lastLoopTime = timer.read_ms();
+  g_last_loop_time = g_timer.read_ms();
 
   // 2: Convert encoder values into velocity
-  actualSpeedL = (metersPerTick * tickDataLeft) / dT_sec;
-  actualSpeedR = (metersPerTick * tickDataRight) / dT_sec;
+  g_actual_speed_l = (g_meters_per_tick * g_tick_data_left) / g_d_t_sec;
+  g_actual_speed_r = (g_meters_per_tick * g_tick_data_right) / g_d_t_sec;
 
-  tickDataLeft = 0;
-  tickDataRight = 0;
+  g_tick_data_left = 0;
+  g_tick_data_right = 0;
 
   // 3: Calculate error
-  ErrorL = desiredSpeedL - actualSpeedL;
-  ErrorR = desiredSpeedR - actualSpeedR;
+  g_error_l = g_desired_speed_l - g_actual_speed_l;
+  g_error_r = g_desired_speed_r - g_actual_speed_r;
 
   // 4: Calculate Derivative Error
-  // TODO: Make alpha a parameter
+  // TODO(oswinso): Make alpha a parameter
   float alpha = 0.75;
-  low_passed_pv_l = alpha * (actual_speed_last_l - actualSpeedL) / dT_sec +
-                    (1 - alpha) * low_passed_pv_l;
-  low_passed_pv_r = alpha * (actual_speed_last_r - actualSpeedR) / dT_sec +
-                    (1 - alpha) * low_passed_pv_r;
+  g_low_passed_pv_l = alpha * (g_actual_speed_last_l - g_actual_speed_l) / g_d_t_sec +
+                    (1 - alpha) * g_low_passed_pv_l;
+  g_low_passed_pv_r = alpha * (g_actual_speed_last_r - g_actual_speed_r) / g_d_t_sec +
+                    (1 - alpha) * g_low_passed_pv_r;
 
-  dErrorL = low_passed_pv_l;
-  dErrorR = low_passed_pv_r;
+  g_d_error_l = g_low_passed_pv_l;
+  g_d_error_r = g_low_passed_pv_r;
 
   // 5: Calculate Integral Error
   // 5a: Calculate Error
-  iErrorL += ErrorL * dT_sec;
-  iErrorR += ErrorR * dT_sec;
+  g_i_error_l += g_error_l * g_d_t_sec;
+  g_i_error_r += g_error_r * g_d_t_sec;
 
   // 5b: Perform clamping
-  // TODO: make clamping a parameter
-  float i_clamp = 60 / I_l;
-  iErrorL = min(i_clamp, max(-i_clamp, iErrorL));
-  iErrorR = min(i_clamp, max(-i_clamp, iErrorR));
+  // TODO(oswinso): make clamping a parameter
+  float i_clamp = 60 / g_i_l;
+  g_i_error_l = min(i_clamp, max(-i_clamp, g_i_error_l));
+  g_i_error_r = min(i_clamp, max(-i_clamp, g_i_error_r));
 
   // 6: Sum P, I and D terms
-  float feedback_left = P_l * ErrorL + D_l * dErrorL + I_l * iErrorL;
-  float feedback_right = P_r * ErrorR + D_r * dErrorR + I_r * iErrorR;
+  float feedback_left = g_p_l * g_error_l + g_d_l * g_d_error_l + g_i_l * g_i_error_l;
+  float feedback_right = g_p_r * g_error_r + g_d_r * g_d_error_r + g_i_r * g_i_error_r;
 
   // 7: Calculate feedforward
-  float feedforward_left = Kv_l * desiredSpeedL;
-  float feedforward_right = Kv_r * desiredSpeedR;
+  float feedforward_left = g_kv_l * g_desired_speed_l;
+  float feedforward_right = g_kv_r * g_desired_speed_r;
 
   // Apparently motor commands are inverted somehow
-  PWM_L = -static_cast<int>(round(feedforward_left + feedback_left));
-  PWM_R = -static_cast<int>(round(feedforward_right + feedback_right));
+  g_pwm_l = -static_cast<int>(round(feedforward_left + feedback_left));
+  g_pwm_r = -static_cast<int>(round(feedforward_right + feedback_right));
 
   // Map from 1 - 127, since 0 causes both motors to stop
-  PWM_L = min(63, max(-63, PWM_L)) + 64;
-  PWM_R = min(63, max(-63, PWM_R)) + 64;
+  g_pwm_l = min(63, max(-63, g_pwm_l)) + 64;
+  g_pwm_r = min(63, max(-63, g_pwm_r)) + 64;
 
   // 8: Deadband
-  if (abs(actualSpeedL) < 0.16 && abs(desiredSpeedL) < 0.16) {
-    PWM_L = 64;
+  if (abs(g_actual_speed_l) < 0.16 && abs(g_desired_speed_l) < 0.16) {
+    g_pwm_l = 64;
   }
 
-  if (abs(actualSpeedR) < 0.16 && abs(desiredSpeedR) < 0.16) {
-    PWM_R = 64;
+  if (abs(g_actual_speed_r) < 0.16 && abs(g_desired_speed_r) < 0.16) {
+    g_pwm_r = 64;
   }
 
-  if (PWM_L < 40 && PWM_R < 40) {
-    myLED4 = 1;
-    PWM_L = 64;
-    PWM_R = 64;
+  if (g_pwm_l < 40 && g_pwm_r < 40) {
+    g_my_le_d4 = 1;
+    g_pwm_l = 64;
+    g_pwm_r = 64;
   }
 
-  if (actualSpeedL < -0.5 && actualSpeedR < -0.5) {
-    myLED3 = 1;
-    PWM_L = 64;
-    PWM_R = 64;
+  if (g_actual_speed_l < -0.5 && g_actual_speed_r < -0.5) {
+    g_my_le_d3 = 1;
+    g_pwm_l = 64;
+    g_pwm_r = 64;
   }
 
   setSpeeds(
-      {static_cast<unsigned char>(PWM_L), static_cast<unsigned char>(PWM_R)});
+      {static_cast<unsigned char>(g_pwm_l), static_cast<unsigned char>(g_pwm_r)});
 
   /*
       Be aware that this motor board does not interface with the motor
@@ -436,13 +436,13 @@ void pid() {
       -255 to 255 values are handled in motor.cpp file, mapped to 0 to 127.
   */
 
-  lastErrorL = ErrorL;
-  lastErrorR = ErrorR;
-  actual_speed_last_l = actualSpeedL;
-  actual_speed_last_r = actualSpeedR;
+  g_last_error_l = g_error_l;
+  g_last_error_r = g_error_r;
+  g_actual_speed_last_l = g_actual_speed_l;
+  g_actual_speed_last_r = g_actual_speed_r;
 }
 
-void bothMotorStop() { serial.putc(0); }
+void bothMotorStop() { g_serial.putc(0); }
 
 /**
  * Sets speed for both motors. Right motor is 0 - 127, Left motor is 128 - 255
@@ -450,8 +450,8 @@ void bothMotorStop() { serial.putc(0); }
  */
 void setSpeeds(SpeedPair speed) {
   // Right motor
-  serial.putc(speed.right);
+  g_serial.putc(speed.right);
 
   // Left motor
-  serial.putc(static_cast<char>(128) + speed.left);
+  g_serial.putc(static_cast<char>(128) + speed.left);
 }

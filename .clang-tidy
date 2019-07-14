@@ -21,7 +21,8 @@ Checks:          '*,
                   -llvm-include-order,
                   -fuchsia-*,
                   -misc-unused-parameters,
-                  -hicpp-no-assembler'
+                  -hicpp-no-assembler,
+                  -cppcoreguidelines-pro-type-reinterpret-cast'
 WarningsAsErrors: '*'
 HeaderFilterRegex: ''
 AnalyzeTemporaryDtors: false

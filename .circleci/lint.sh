@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 # Bash script for linting all source files with clang-tidy
 
-# Abort on first error, Pipe failure
-set -e
-set -o pipefail
-
 # Additional ignore files
 ignore_files=(mbed_config.h build cmake-build-debug)
 
@@ -26,4 +22,22 @@ done <<< "$exclude_files"
 source_files=$(find ../ ${exclude_flags} \( -name '*.h' -or -name '*.hpp' -or -name '*.cpp' \) -print)
 
 # Run clang-tidy on all source files
-clang-tidy -p ../build/compile_commands.json ${source_files}
+clang-tidy -p ../build/compile_commands.json ${source_files} > ../clang-tidy.log 2> /dev/null || true
+
+echo "Source files to check for:"
+echo ${source_files} | sed 's/..\///g'
+echo "Errors from other files are ignored."
+regex=$(echo ${source_files} | sed 's/ /\\\|/g' | sed 's/..\///g')
+
+num_actual_errors=$(grep "${regex}" ../clang-tidy.log | wc -l)
+
+if [[ "${num_actual_errors}" -gt "0" ]]; then
+    echo "There were ${num_actual_errors} errors:"
+    echo ""
+    grep "${regex}" ../clang-tidy.log
+    exit 1
+fi
+echo ""
+echo "No errors! Exiting..."
+
+exit 0
