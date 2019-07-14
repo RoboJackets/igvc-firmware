@@ -93,6 +93,7 @@ jobs:
       - <<: *load_test_cache
       - <<: *save_test_cache
   lint:
+    <<: *dir
     <<: *image
     steps:
       - <<: *load_src_cache
