@@ -1,21 +1,21 @@
 #include "mbed.h"
 
-#include <string>
 #include <cstring>
 #include <stdlib.h>
+#include <string>
 
 #define DEBUG false
 
-#include <pb_encode.h>
-#include <pb_decode.h>
-#include <EthernetInterface.h>
 #include "igvc.pb.h"
+#include <EthernetInterface.h>
+#include <pb_decode.h>
+#include <pb_encode.h>
 
 /* ethernet setup variables */
 #define ECHO_SERVER_PORT 7
 #define BUFFER_SIZE 256
 #define MAX_MESSAGES 1 // backlog of messages the server should hold
-#define TIMEOUT_MS 50 // timeout for blocking read operations
+#define TIMEOUT_MS 50  // timeout for blocking read operations
 
 /* hardware definitions */
 Timer timer;
@@ -106,9 +106,9 @@ const double metersPerTick = wheelCircum / (ticksPerRev * gearRatio);
 int estop = 1;
 
 int main() {
-//    /* Read PCON register */
+  //    /* Read PCON register */
   printf("PCON: 0x%x\n", *((unsigned int *)0x400FC180));
-  *(unsigned int*) 0x400fc180 |= 0xf;
+  *(unsigned int *)0x400fc180 |= 0xf;
 
   /* Open the server (mbed) via the EthernetInterface class */
   printf("Setting up ethernet interface...\r\n");
@@ -121,7 +121,8 @@ int main() {
   socket.connect(ip);
   printf("Server IP Address is: %s\r\n", ip);
 
-  /* Instantiate a TCP Socket to function as the server and bind it to the specified port */
+  /* Instantiate a TCP Socket to function as the server and bind it to the
+   * specified port */
   TCPSocket server_socket;
   server_socket.bind(ECHO_SERVER_PORT);
   server_socket.listen();
@@ -139,10 +140,9 @@ int main() {
   timer.start();
 
   /* Instantiage a TCP socket to serve as the client */
-  TCPSocket* client;
+  TCPSocket *client;
 
-  while (true)
-  {
+  while (true) {
     myLED2 = 1;
     /* wait for a new TCP Connection */
     printf("Waiting for new connection...\r\n");
@@ -155,31 +155,29 @@ int main() {
     printf("Connection from: %s\r\n", socket_address.get_ip_address());
     estop = 1;
 
-    while (true)
-    {
+    while (true) {
       /* read data into the buffer. This call blocks until data is read */
       char buffer[BUFFER_SIZE];
-      int n = client->recv(buffer, sizeof(buffer)-1);
+      int n = client->recv(buffer, sizeof(buffer) - 1);
 
       /*
       n represents the response message for the read() command.
       - if n == 0 then the client closed the connection
       - otherwise, n is the number of bytes read
       */
-      if (n < 0)
-      {
-        if (DEBUG) { printf("Received empty buffer\n"); }
+      if (n < 0) {
+        if (DEBUG) {
+          printf("Received empty buffer\n");
+        }
         wait_ms(10);
         continue;
-      }
-      else if (n == 0)
-      {
+      } else if (n == 0) {
         printf("Client Closed Connection\n");
         break;
-      }
-      else
-      {
-        if (DEBUG) { printf("Received Request of size: %d\n", n); }
+      } else {
+        if (DEBUG) {
+          printf("Received Request of size: %d\n", n);
+        }
       }
 
       /* protobuf message to hold request from client */
@@ -187,14 +185,14 @@ int main() {
       bool istatus;
 
       /* Create a stream that reads from the buffer. */
-      pb_istream_t istream = pb_istream_from_buffer(reinterpret_cast<uint8_t*>(buffer), n);
+      pb_istream_t istream =
+          pb_istream_from_buffer(reinterpret_cast<uint8_t *>(buffer), n);
 
       /* decode the message */
       istatus = pb_decode(&istream, RequestMessage_fields, &request);
 
       /* check for any errors.. */
-      if (!istatus)
-      {
+      if (!istatus) {
         printf("Decoding failed: %s\n", PB_GET_ERROR(&istream));
         continue;
       }
@@ -202,19 +200,15 @@ int main() {
       parseRequest(request);
 
       /* reset the timer */
-      if (timer.read_ms() > pow(2, 20))
-      {
+      if (timer.read_ms() > pow(2, 20)) {
         timer.reset();
         lastCmdTime = 0;
       }
 
       /* estop logic */
-      if (!eStopStatus.read())
-      {
+      if (!eStopStatus.read()) {
         triggerEstop();
-      }
-      else
-      {
+      } else {
         estop = 1;
         eStopLight = 0;
       }
@@ -222,8 +216,7 @@ int main() {
       /* update motor velocities with PID */
       pid();
 
-      if (!sendResponse(*client))
-      {
+      if (!sendResponse(*client)) {
         printf("Couldn't send response to client!\r\n");
         continue;
       }
@@ -234,8 +227,7 @@ int main() {
   }
 }
 
-bool sendResponse(TCPSocket &client)
-{
+bool sendResponse(TCPSocket &client) {
   /* protocol buffer to hold response message */
   ResponseMessage response = ResponseMessage_init_zero;
 
@@ -245,60 +237,60 @@ bool sendResponse(TCPSocket &client)
   bool ostatus;
 
   /* Create a stream that will write to our buffer. */
-  pb_ostream_t ostream = pb_ostream_from_buffer(responsebuffer, sizeof(responsebuffer));
-
+  pb_ostream_t ostream =
+      pb_ostream_from_buffer(responsebuffer, sizeof(responsebuffer));
 
   /* Fill in the message fields */
-  response.has_p_l     = true;
-  response.has_p_r     = true;
-  response.has_i_l     = true;
-  response.has_i_r     = true;
-  response.has_d_l     = true;
-  response.has_d_r     = true;
+  response.has_p_l = true;
+  response.has_p_r = true;
+  response.has_i_l = true;
+  response.has_i_r = true;
+  response.has_d_l = true;
+  response.has_d_r = true;
   response.has_speed_l = true;
   response.has_speed_r = true;
-  response.has_dt_sec  = true;
+  response.has_dt_sec = true;
   response.has_voltage = true;
-  response.has_estop   = true;
+  response.has_estop = true;
 
-  response.has_kv_l   = true;
-  response.has_kv_r   = true;
+  response.has_kv_l = true;
+  response.has_kv_r = true;
 
-  response.p_l     = static_cast<float>(P_l);
-  response.p_r     = static_cast<float>(P_r);
-  response.i_l     = static_cast<float>(I_l);
-  response.i_r     = static_cast<float>(I_r);
-  response.d_l     = static_cast<float>(D_l);
-  response.d_r     = static_cast<float>(D_r);
+  response.p_l = static_cast<float>(P_l);
+  response.p_r = static_cast<float>(P_r);
+  response.i_l = static_cast<float>(I_l);
+  response.i_r = static_cast<float>(I_r);
+  response.d_l = static_cast<float>(D_l);
+  response.d_r = static_cast<float>(D_r);
 
   response.speed_l = static_cast<float>(actualSpeedL);
   response.speed_r = static_cast<float>(actualSpeedR);
-  response.dt_sec  = static_cast<float>(dT_sec);
+  response.dt_sec = static_cast<float>(dT_sec);
   response.voltage = static_cast<float>(battery.read() * 3.3 * 521 / 51);
-  response.estop   = static_cast<bool>(estop);
+  response.estop = static_cast<bool>(estop);
 
-  response.kv_l     = static_cast<float>(Kv_l);
-  response.kv_r     = static_cast<float>(Kv_r);
+  response.kv_l = static_cast<float>(Kv_l);
+  response.kv_r = static_cast<float>(Kv_r);
 
   /* encode the message */
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
   response_length = ostream.bytes_written;
 
-  if (DEBUG) { printf("Sending message of length: %zu\n", response_length); }
+  if (DEBUG) {
+    printf("Sending message of length: %zu\n", response_length);
+  }
 
   /* Then just check for any errors.. */
-  if (!ostatus)
-  {
+  if (!ostatus) {
     printf("Encoding failed: %s\n", PB_GET_ERROR(&ostream));
     return false;
   }
 
-  client.send(reinterpret_cast<char*>(responsebuffer), response_length);
+  client.send(reinterpret_cast<char *>(responsebuffer), response_length);
   return true;
 }
 
-void triggerEstop()
-{
+void triggerEstop() {
   // If get 5V, since inverted, meaning disabled on motors
   estop = 0;
   desiredSpeedL = 0;
@@ -315,11 +307,9 @@ void triggerEstop()
 Update global variables using most recent client request.
 @param[in] req RequestMessage protobuf with desired values
 */
-void parseRequest(const RequestMessage &req)
-{
+void parseRequest(const RequestMessage &req) {
   /* request contains PID values */
-  if (req.has_p_l)
-  {
+  if (req.has_p_l) {
     P_l = req.p_l;
     P_r = req.p_r;
     D_l = req.d_l;
@@ -330,8 +320,7 @@ void parseRequest(const RequestMessage &req)
     Kv_r = req.kv_r;
   }
   /* request contains motor velocities */
-  if (req.has_speed_l)
-  {
+  if (req.has_speed_l) {
     desiredSpeedL = req.speed_l;
     desiredSpeedR = req.speed_r;
   }
@@ -340,8 +329,7 @@ void parseRequest(const RequestMessage &req)
 void tickRight() {
   if (encoderRightPinA.read() == encoderRightPinB.read()) {
     ++tickDataRight;
-  }
-  else {
+  } else {
     --tickDataRight;
   }
 }
@@ -349,19 +337,15 @@ void tickRight() {
 void tickLeft() {
   if (encoderLeftPinA.read() == encoderLeftPinB.read()) {
     ++tickDataLeft;
-  }
-  else {
+  } else {
     --tickDataLeft;
   }
 }
 
-// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation but with e(t) on velocity, not position
-// Changes to before
-// 1: Derivative on PV
-// 2: Corrected integral
-// 3: Low pass on Derivative
-// 4: Clamping on Integral
-// 5: Feed forward
+// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation but with
+// e(t) on velocity, not position Changes to before 1: Derivative on PV 2:
+// Corrected integral 3: Low pass on Derivative 4: Clamping on Integral 5: Feed
+// forward
 void pid() {
   // 1: Calculate dt
   dT_sec = (float)(timer.read_ms() - lastLoopTime) / 1000.0;
@@ -387,8 +371,10 @@ void pid() {
   // 4: Calculate Derivative Error
   // TODO: Make alpha a parameter
   float alpha = 0.75;
-  low_passed_pv_l = alpha * (actual_speed_last_l - actualSpeedL)/dT_sec + (1 - alpha) * low_passed_pv_l;
-  low_passed_pv_r = alpha * (actual_speed_last_r - actualSpeedR)/dT_sec + (1 - alpha) * low_passed_pv_r;
+  low_passed_pv_l = alpha * (actual_speed_last_l - actualSpeedL) / dT_sec +
+                    (1 - alpha) * low_passed_pv_l;
+  low_passed_pv_r = alpha * (actual_speed_last_r - actualSpeedR) / dT_sec +
+                    (1 - alpha) * low_passed_pv_r;
 
   dErrorL = low_passed_pv_l;
   dErrorR = low_passed_pv_r;
@@ -429,21 +415,20 @@ void pid() {
     PWM_R = 64;
   }
 
-  if (PWM_L < 40 && PWM_R < 40)
-  {
+  if (PWM_L < 40 && PWM_R < 40) {
     myLED4 = 1;
     PWM_L = 64;
     PWM_R = 64;
   }
 
-  if (actualSpeedL < -0.5 && actualSpeedR < -0.5)
-  {
+  if (actualSpeedL < -0.5 && actualSpeedR < -0.5) {
     myLED3 = 1;
     PWM_L = 64;
     PWM_R = 64;
   }
 
-  setSpeeds({static_cast<unsigned char>(PWM_L), static_cast<unsigned char>(PWM_R)});
+  setSpeeds(
+      {static_cast<unsigned char>(PWM_L), static_cast<unsigned char>(PWM_R)});
 
   /*
       Be aware that this motor board does not interface with the motor
@@ -457,10 +442,7 @@ void pid() {
   actual_speed_last_r = actualSpeedR;
 }
 
-void bothMotorStop() {
-  serial.putc(0);
-}
-
+void bothMotorStop() { serial.putc(0); }
 
 /**
  * Sets speed for both motors. Right motor is 0 - 127, Left motor is 128 - 255
