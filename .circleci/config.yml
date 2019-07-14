@@ -108,7 +108,8 @@ jobs:
       - run:
           name: "Clang-format"
           command: |
-
+            cd .circleci
+            ./lint.sh
 
 workflows:
   version: 2
