@@ -69,7 +69,7 @@ jobs:
       - <<: *load_compile_cache
       - run:
           name: Creating Build Files
-          command: cmake -H. -GNinja -Bbuild
+          command: cmake -H. -GNinja -Bbuild -DCMAKE_EXPORT_COMPILE_COMMANDS=1
       - run:
           name: Building binaries
           command: cmake --build build
