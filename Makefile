@@ -1,4 +1,4 @@
-IGNORE_FOLDERS:=cmake-build-debug mbed_config.h
+IGNORE_FOLDERS:=cmake-build-debug build mbed_config.h
 SUBMODULES:=$(shell grep 'path = ' .gitmodules | cut -d= -f2-)
 IGNORE:= $(IGNORE_FOLDERS) $(SUBMODULES)
 SUFFIXED_SUBMODULES:=$(addsuffix %%,$(IGNORE))

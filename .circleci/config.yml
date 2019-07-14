@@ -41,6 +41,16 @@ load_test_cache: &load_test_cache
       - ccache-test-{{ arch }}
       - ccache-test-
 
+save_build: &save_build
+  persist_to_workspace:
+    root: ~/igvc-firmware
+    paths:
+      - build/*
+
+load_build: &load_build
+  attach_workspace:
+    at: ~/igvc-firmware
+
 version: 2
 jobs:
   compile:
@@ -64,6 +74,7 @@ jobs:
           name: Building binaries
           command: cmake --build build
       - <<: *save_compile_cache
+      - <<: *save_build
       - store_artifacts:
           path: ~/igvc-firmware/build/igvc-firmware.bin
   test:
@@ -73,31 +84,31 @@ jobs:
       - <<: *load_src_cache
       - checkout:
           path: ~/igvc-firmware
+      - run:
+          name: "Checkout Submodules"
+          command: |
+            git submodule init
+            git submodule update
       - <<: *save_src_cache
       - <<: *load_test_cache
       - <<: *save_test_cache
-#  format:
-#    working_directory: ~/catkin_ws/src/igvc-software
-#    <<: *image
-#    steps:
-#      - <<: *load_src_cache
-#      - checkout:
-#          path: ~/catkin_ws/src/igvc-software
-#      - <<: *save_src_cache
-#      - run: |
-#          apt-get update -y
-#          apt-get install -y clang-format-6.0
-#          ln -s /usr/bin/clang-format-6.0 /usr/bin/clang-format
-#          clang-format -dump-config
-#          SOURCE_FILES=`find . -name '*.h' -or -name '*.hpp' -or -name '*.cpp' -not -path "./external/*"`
-#          for SOURCE_FILE in $SOURCE_FILES
-#          do
-#            export FORMATTING_ISSUE_COUNT=`clang-format -output-replacements-xml $SOURCE_FILE | grep offset | wc -l`
-#            if [ "$FORMATTING_ISSUE_COUNT" -gt "0" ]; then
-#              echo "Source file $SOURCE_FILE contains formatting issues. Please use clang-format tool to resolve found issues."
-#              exit 1
-#            fi
-#          done
+  lint:
+    <<: *image
+    steps:
+      - <<: *load_src_cache
+      - checkout:
+          path: ~/igvc-firmware
+      - run:
+          name: "Checkout Submodules"
+          command: |
+            git submodule init
+            git submodule update
+      - <<: *save_src_cache
+      - <<: *load_build
+      - run:
+          name: "Clang-format"
+          command: |
+
 
 workflows:
   version: 2
@@ -105,5 +116,8 @@ workflows:
     jobs:
       - compile
       - test:
+          requires:
+            - compile
+      - lint:
           requires:
             - compile
