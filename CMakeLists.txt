@@ -14,10 +14,11 @@ SET(CMAKE_CXX_COMPILER    "arm-none-eabi-g++")
 SET(ELF2BIN               "arm-none-eabi-objcopy")
 
 # NanoPB config
+set(PROTOS src/mbed/protos/igvc.proto)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/nanopb/extra)
 find_package(Nanopb REQUIRED)
 include_directories(${NANOPB_INCLUDE_DIRS})
-nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS protos/igvc.proto)
+nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTOS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS}
   PROPERTIES GENERATED TRUE)
@@ -362,7 +363,7 @@ INCLUDE_DIRECTORIES(
 
 # executable igvc-firmware
 ADD_EXECUTABLE(igvc-firmware
-  main.cpp
+  src/mbed/main.cpp
   mbed-os/cmsis/RTE_Components.h
   mbed-os/cmsis/TARGET_CORTEX_M/TOOLCHAIN_GCC/except.S
   mbed-os/cmsis/TARGET_CORTEX_M/arm_math.h
