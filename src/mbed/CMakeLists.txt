@@ -28,12 +28,12 @@ ENDIF()
 # =================
 message(STATUS "Creating NanoPB target...")
 
-set(NANOPB_SRC_ROOT_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/nanopb)
+set(NANOPB_SRC_ROOT_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/external/nanopb)
 set(CMAKE_MODULE_PATH ${NANOPB_SRC_ROOT_FOLDER}/extra)
 find_package(Nanopb REQUIRED)
 
 include_directories(${NANOPB_INCLUDE_DIRS})
-set(PROTOS src/protos/igvc.proto)
+set(PROTOS protos/igvc.proto)
 nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTOS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
@@ -41,7 +41,7 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRU
 message(STATUS "Creating NanoPB target...Done!")
 
 # uncomment below to have a verbose build process
-SET(CMAKE_VERBOSE_MAKEFILE ON)
+#SET(CMAKE_VERBOSE_MAKEFILE ON)
 
 SET(LD_SYS_LIBS "-Wl,--start-group -lstdc++ -lsupc++ -lm -lc -lgcc -lnosys  -Wl,--end-group")
 SET(MBED_CONFIG ${PROJECT_SOURCE_DIR}/mbed_config.h)
@@ -56,8 +56,10 @@ SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} ${LD_SYS_LIBS} -T ${CMAKE_CURR
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
 
+set(MBED_ROOT_DIR external)
+
 # ignore warnings from mbed-os
-file(GLOB_RECURSE MBED_OS_FILES "mbed-os/*.c" "mbed-os/*.cpp" "mbed-os/*.h")
+file(GLOB_RECURSE MBED_OS_FILES "${MBED_ROOT_DIR}/mbed-os/*.c" "${MBED_ROOT_DIR}/mbed-os/*.cpp" "${MBED_ROOT_DIR}/mbed-os/*.h")
 set_source_files_properties(
   ${MBED_OS_FILES}
   PROPERTIES
@@ -117,7 +119,15 @@ add_compile_definitions(
   __MBED__=1
   )
 
-set(MBED_FILES
+FUNCTION(PREPEND var prefix)
+  SET(listVar "")
+  FOREACH(f ${ARGN})
+    LIST(APPEND listVar "${prefix}/${f}")
+  ENDFOREACH(f)
+  SET(${var} "${listVar}" PARENT_SCOPE)
+ENDFUNCTION(PREPEND)
+
+set(MBED_SRCS
   mbed-os/cmsis/RTE_Components.h
   mbed-os/cmsis/TARGET_CORTEX_M/TOOLCHAIN_GCC/except.S
   mbed-os/cmsis/TARGET_CORTEX_M/arm_math.h
@@ -1906,7 +1916,6 @@ set(MBED_FILES
   mbed-os/usb/device/utilities/events/TaskBase.cpp
   mbed-os/usb/device/utilities/events/TaskBase.h
   mbed-os/usb/device/utilities/events/TaskQueue.h
-  mbed_config.h
   )
 
 set(MBED_INCLUDE_DIRS
@@ -2163,22 +2172,33 @@ set(MBED_INCLUDE_DIRS
   mbed-os
   /usr/src/mbed-sdk
   )
+PREPEND(MBED_SRCS ${MBED_ROOT_DIR} ${MBED_SRCS})
+PREPEND(MBED_INCLUDE_DIRS ${MBED_ROOT_DIR} ${MBED_INCLUDE_DIRS})
 
-add_library(mbed_lib ${MBED_FILES})
+add_library(mbed_lib ${MBED_SRCS} mbed_config.h)
+
 target_include_directories(mbed_lib PUBLIC ${MBED_INCLUDE_DIRS})
 
 set(PROTO_FILES ${PROTO_SRCS} ${PROTO_HDRS})
 
-add_executable(igvc-firmware-mbed src/main.cpp ${PROTO_FILES})
+add_executable(igvc-firmware-mbed main.cpp ${PROTO_FILES})
 target_link_libraries(igvc-firmware-mbed mbed_lib)
-target_include_directories(igvc-firmware-mbed PRIVATE ${MBED_INCLUDE_DIRS} nanopb)
+target_include_directories(igvc-firmware-mbed PRIVATE ${MBED_INCLUDE_DIRS})
 
 set_target_properties(igvc-firmware-mbed PROPERTIES ENABLE_EXPORTS 1)
 # add syslibs dependencies to create the correct linker order
 target_link_libraries(igvc-firmware-mbed -lstdc++ -lsupc++ -lm -lc -lgcc -lnosys)
 
+set(PRE_LINK_FLAGS
+  -E -P -Wl,--gc-sections -Wl,--wrap,main -Wl,--wrap,_malloc_r -Wl,--wrap,_free_r -Wl,--wrap,_realloc_r
+  -Wl,--wrap,_memalign_r -Wl,--wrap,_calloc_r -Wl,--wrap,exit -Wl,--wrap,atexit -Wl,-n -mcpu=cortex-m3 -mthumb
+  -DMBED_ROM_START=0x0 -DMBED_ROM_SIZE=0x80000 -DMBED_RAM_START=0x10000000 -DMBED_RAM_SIZE=0x8000
+  -DMBED_RAM1_START=0x2007c000 -DMBED_RAM1_SIZE=0x8000 -DMBED_BOOT_STACK_SIZE=1024
+  ${MBED_ROOT_DIR}/mbed-os/targets/TARGET_NXP/TARGET_LPC176X/device/TOOLCHAIN_GCC_ARM/LPC1768.ld
+  -o ${CMAKE_CURRENT_BINARY_DIR}/igvc-firmware-mbed_pp.link_script.ld
+  )
 add_custom_command(TARGET igvc-firmware-mbed PRE_LINK
-                   COMMAND "arm-none-eabi-cpp" -E -P -Wl,--gc-sections -Wl,--wrap,main -Wl,--wrap,_malloc_r -Wl,--wrap,_free_r -Wl,--wrap,_realloc_r -Wl,--wrap,_memalign_r -Wl,--wrap,_calloc_r -Wl,--wrap,exit -Wl,--wrap,atexit -Wl,-n -mcpu=cortex-m3 -mthumb -DMBED_ROM_START=0x0 -DMBED_ROM_SIZE=0x80000 -DMBED_RAM_START=0x10000000 -DMBED_RAM_SIZE=0x8000 -DMBED_RAM1_START=0x2007c000 -DMBED_RAM1_SIZE=0x8000 -DMBED_BOOT_STACK_SIZE=1024 mbed-os/targets/TARGET_NXP/TARGET_LPC176X/device/TOOLCHAIN_GCC_ARM/LPC1768.ld -o ${CMAKE_CURRENT_BINARY_DIR}/igvc-firmware-mbed_pp.link_script.ld
+                   COMMAND "arm-none-eabi-cpp" ${PRE_LINK_FLAGS}
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                    BYPRODUCTS "${CMAKE_CURRENT_BINARY_DIR}/igvc-firmware-mbed_pp.link_script.ld"
                    )
