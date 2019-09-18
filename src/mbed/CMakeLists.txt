@@ -28,10 +28,12 @@ ENDIF()
 # =================
 message(STATUS "Creating NanoPB target...")
 
-set(PROTOS src/protos/igvc.proto)
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/nanopb/extra)
+set(NANOPB_SRC_ROOT_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/nanopb)
+set(CMAKE_MODULE_PATH ${NANOPB_SRC_ROOT_FOLDER}/extra)
 find_package(Nanopb REQUIRED)
+
 include_directories(${NANOPB_INCLUDE_DIRS})
+set(PROTOS src/protos/igvc.proto)
 nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTOS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
@@ -62,57 +64,57 @@ set_source_files_properties(
   COMPILE_FLAGS "-w"
 )
 
-add_definitions(
-  -DARM_MATH_CM3
-  -DCOMPONENT_NSPE=1
-  -DCOMPONENT_PSA_SRV_EMUL=1
-  -DCOMPONENT_PSA_SRV_IMPL=1
-  -DDEVICE_ANALOGIN=1
-  -DDEVICE_ANALOGOUT=1
-  -DDEVICE_CAN=1
-  -DDEVICE_DEBUG_AWARENESS=1
-  -DDEVICE_EMAC=1
-  -DDEVICE_ETHERNET=1
-  -DDEVICE_FLASH=1
-  -DDEVICE_I2C=1
-  -DDEVICE_I2CSLAVE=1
-  -DDEVICE_INTERRUPTIN=1
-  -DDEVICE_LOCALFILESYSTEM=1
-  -DDEVICE_MPU=1
-  -DDEVICE_PORTIN=1
-  -DDEVICE_PORTINOUT=1
-  -DDEVICE_PORTOUT=1
-  -DDEVICE_PWMOUT=1
-  -DDEVICE_RTC=1
-  -DDEVICE_SEMIHOST=1
-  -DDEVICE_SERIAL=1
-  -DDEVICE_SERIAL_FC=1
-  -DDEVICE_SLEEP=1
-  -DDEVICE_SPI=1
-  -DDEVICE_SPISLAVE=1
-  -DDEVICE_STDIO_MESSAGES=1
-  -DDEVICE_USBDEVICE=1
-  -DDEVICE_USTICKER=1
-  -DMBED_BUILD_TIMESTAMP=1562379002.56
-  -DTARGET_CORTEX
-  -DTARGET_CORTEX_M
-  -DTARGET_LIKE_CORTEX_M3
-  -DTARGET_LIKE_MBED
-  -DTARGET_LPC1768
-  -DTARGET_LPC176X
-  -DTARGET_LPCTarget
-  -DTARGET_M3
-  -DTARGET_MBED_LPC1768
-  -DTARGET_NAME=LPC1768
-  -DTARGET_NXP
-  -DTARGET_NXP_EMAC
-  -DTARGET_RELEASE
-  -DTOOLCHAIN_GCC
-  -DTOOLCHAIN_GCC_ARM
-  -D__CMSIS_RTOS
-  -D__CORTEX_M3
-  -D__MBED_CMSIS_RTOS_CM
-  -D__MBED__=1
+add_compile_definitions(
+  ARM_MATH_CM3
+  COMPONENT_NSPE=1
+  COMPONENT_PSA_SRV_EMUL=1
+  COMPONENT_PSA_SRV_IMPL=1
+  DEVICE_ANALOGIN=1
+  DEVICE_ANALOGOUT=1
+  DEVICE_CAN=1
+  DEVICE_DEBUG_AWARENESS=1
+  DEVICE_EMAC=1
+  DEVICE_ETHERNET=1
+  DEVICE_FLASH=1
+  DEVICE_I2C=1
+  DEVICE_I2CSLAVE=1
+  DEVICE_INTERRUPTIN=1
+  DEVICE_LOCALFILESYSTEM=1
+  DEVICE_MPU=1
+  DEVICE_PORTIN=1
+  DEVICE_PORTINOUT=1
+  DEVICE_PORTOUT=1
+  DEVICE_PWMOUT=1
+  DEVICE_RTC=1
+  DEVICE_SEMIHOST=1
+  DEVICE_SERIAL=1
+  DEVICE_SERIAL_FC=1
+  DEVICE_SLEEP=1
+  DEVICE_SPI=1
+  DEVICE_SPISLAVE=1
+  DEVICE_STDIO_MESSAGES=1
+  DEVICE_USBDEVICE=1
+  DEVICE_USTICKER=1
+  MBED_BUILD_TIMESTAMP=1562379002.56
+  TARGET_CORTEX
+  TARGET_CORTEX_M
+  TARGET_LIKE_CORTEX_M3
+  TARGET_LIKE_MBED
+  TARGET_LPC1768
+  TARGET_LPC176X
+  TARGET_LPCTarget
+  TARGET_M3
+  TARGET_MBED_LPC1768
+  TARGET_NAME=LPC1768
+  TARGET_NXP
+  TARGET_NXP_EMAC
+  TARGET_RELEASE
+  TOOLCHAIN_GCC
+  TOOLCHAIN_GCC_ARM
+  __CMSIS_RTOS
+  __CORTEX_M3
+  __MBED_CMSIS_RTOS_CM
+  __MBED__=1
   )
 
 set(MBED_FILES
@@ -1907,11 +1909,7 @@ set(MBED_FILES
   mbed_config.h
   )
 
-set(PROTO_FILES ${PROTO_SRCS} ${PROTO_HDRS})
-
-add_executable(igvc-firmware-mbed src/main.cpp ${MBED_FILES} ${PROTO_FILES})
-
-target_include_directories(igvc-firmware-mbed PRIVATE
+set(MBED_INCLUDE_DIRS
   mbed-os/usb/device/utilities/events
   mbed-os/usb/device/utilities
   mbed-os/usb/device/targets/TARGET_NXP
@@ -2164,12 +2162,20 @@ target_include_directories(igvc-firmware-mbed PRIVATE
   mbed-os/cmsis
   mbed-os
   /usr/src/mbed-sdk
-  nanopb
   )
 
-SET_TARGET_PROPERTIES(igvc-firmware-mbed PROPERTIES ENABLE_EXPORTS 1)
+add_library(mbed_lib ${MBED_FILES})
+target_include_directories(mbed_lib PUBLIC ${MBED_INCLUDE_DIRS})
+
+set(PROTO_FILES ${PROTO_SRCS} ${PROTO_HDRS})
+
+add_executable(igvc-firmware-mbed src/main.cpp ${PROTO_FILES})
+target_link_libraries(igvc-firmware-mbed mbed_lib)
+target_include_directories(igvc-firmware-mbed PRIVATE ${MBED_INCLUDE_DIRS} nanopb)
+
+set_target_properties(igvc-firmware-mbed PROPERTIES ENABLE_EXPORTS 1)
 # add syslibs dependencies to create the correct linker order
-TARGET_LINK_LIBRARIES(igvc-firmware-mbed -lstdc++ -lsupc++ -lm -lc -lgcc -lnosys)
+target_link_libraries(igvc-firmware-mbed -lstdc++ -lsupc++ -lm -lc -lgcc -lnosys)
 
 add_custom_command(TARGET igvc-firmware-mbed PRE_LINK
                    COMMAND "arm-none-eabi-cpp" -E -P -Wl,--gc-sections -Wl,--wrap,main -Wl,--wrap,_malloc_r -Wl,--wrap,_free_r -Wl,--wrap,_realloc_r -Wl,--wrap,_memalign_r -Wl,--wrap,_calloc_r -Wl,--wrap,exit -Wl,--wrap,atexit -Wl,-n -mcpu=cortex-m3 -mthumb -DMBED_ROM_START=0x0 -DMBED_ROM_SIZE=0x80000 -DMBED_RAM_START=0x10000000 -DMBED_RAM_SIZE=0x8000 -DMBED_RAM1_START=0x2007c000 -DMBED_RAM1_SIZE=0x8000 -DMBED_BOOT_STACK_SIZE=1024 mbed-os/targets/TARGET_NXP/TARGET_LPC176X/device/TOOLCHAIN_GCC_ARM/LPC1768.ld -o ${CMAKE_CURRENT_BINARY_DIR}/igvc-firmware-mbed_pp.link_script.ld
