@@ -92,6 +92,10 @@ int g_pwm_l = 0;
 int g_pwm_r = 0;
 int g_e_stop_output;
 
+SpeedPair g_speed_pair;
+uint32_t g_left_output;
+uint32_t g_right_output;
+
 /* encoder values */
 volatile int g_tick_data_right = 0;
 volatile int g_tick_data_left = 0;
@@ -256,6 +260,9 @@ bool sendResponse(TCPSocket &client) {
   response.has_kv_l = true;
   response.has_kv_r = true;
 
+  response.has_left_output = true;
+  response.has_right_output = true;
+
   response.p_l = static_cast<float>(g_p_l);
   response.p_r = static_cast<float>(g_p_r);
   response.i_l = static_cast<float>(g_i_l);
@@ -271,6 +278,9 @@ bool sendResponse(TCPSocket &client) {
 
   response.kv_l = static_cast<float>(g_kv_l);
   response.kv_r = static_cast<float>(g_kv_r);
+
+  response.left_output = g_left_output;
+  response.right_output = g_right_output;
 
   /* encode the message */
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
@@ -427,8 +437,11 @@ void pid() {
     g_pwm_r = 64;
   }
 
-  setSpeeds(
-      {static_cast<unsigned char>(g_pwm_l), static_cast<unsigned char>(g_pwm_r)});
+  g_speed_pair = {static_cast<unsigned char>(g_pwm_l), static_cast<unsigned char>(g_pwm_r)};
+  setSpeeds(g_speed_pair);
+
+  g_left_output = static_cast<uint32_t>(g_pwm_l);
+  g_right_output = static_cast<uint32_t>(g_pwm_r);
 
   /*
       Be aware that this motor board does not interface with the motor

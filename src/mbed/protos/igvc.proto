@@ -18,6 +18,11 @@ message ResponseMessage {
 
     optional float kv_l = 12;
     optional float kv_r = 13;
+
+    // Output sent to motors
+    // Should range from 0 - 255 (ie. uchar)
+    optional uint32 left_output = 14;
+    optional uint32 right_output = 15;
 }
 
 /* RequestMessage filled out by ros node and sent to the mbed */
