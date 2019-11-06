@@ -117,9 +117,22 @@ int main()
 
   Serial pc(USBTX, USBRX);
   /* Open the server (mbed) via the EthernetInterface class */
-  pc.printf("Connecting...");
+  pc.printf("Connecting...\r\n");
   EthernetInterface net;
-  net.connect();
+  constexpr const char* mbed_ip = "192.168.1.20";
+  constexpr const char* netmask = "255.255.255.0";
+  constexpr const char* computer_ip = "192.168.1.21";
+
+  if (int ret = net.set_network(mbed_ip, netmask, computer_ip); ret != 0)
+  {
+    pc.printf("Error performing set_network(). Error code: %i\r\n", ret);
+    return 1;
+  }
+  if (int ret = net.connect(); ret != 0)
+  {
+    pc.printf("Error performing connect(). Error code: %i\r\n", ret);
+    return 1;
+  }
 
   const char *ip = net.get_ip_address();
   pc.printf("MBED's IP address is: %s\n", ip ? ip : "No IP");
@@ -127,9 +140,23 @@ int main()
   /* Instantiate a TCP Socket to function as the server and bind it to the
    * specified port */
   TCPSocket server_socket;
-  server_socket.open(&net);
-  server_socket.bind(net.get_ip_address(), SERVER_PORT);
-  server_socket.listen(1);
+  if (int ret = server_socket.open(&net); ret != 0)
+  {
+    pc.printf("Error opening TCPSocket. Error code: %i\r\n", ret);
+    return 1;
+  }
+
+  if (int ret = server_socket.bind(mbed_ip, SERVER_PORT); ret != 0)
+  {
+    pc.printf("Error binding TCPSocket. Error code: %i\r\n", ret);
+    return 1;
+  }
+
+  if (int ret = server_socket.listen(1); ret != 0)
+  {
+    pc.printf("Error listening. Error code: %i\r\n", ret);
+    return 1;
+  }
 
   g_my_led1 = 1;
 
