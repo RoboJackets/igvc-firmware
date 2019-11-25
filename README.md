@@ -7,6 +7,11 @@ Welcome to the RoboJackets IGVC firmware repo!
 * protobuf-compiler
 * python-protobuf
 
+The second two can be installed with
+```bash
+sudo apt install -y protobuf-compiler python-protobuf
+```
+
 For more details, check the [Dockerfile](Dockerfile).
 
 ### Updating `arm-none-eabi-gcc`
