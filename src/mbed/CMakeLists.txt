@@ -34,9 +34,13 @@ find_package(Nanopb REQUIRED)
 
 include_directories(${NANOPB_INCLUDE_DIRS})
 set(PROTOS protos/igvc.proto)
-nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTOS})
+nanopb_generate_cpp(PROTO_GENERATED_SRCS PROTO_HDRS ${PROTOS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
+# Find the cpp files in the nanopb repo though and mark those as not generated, otherwise make clean removes them
+file(GLOB PROTO_SRCS "${NANOPB_SRC_ROOT_FOLDER}/*.c" "${NANOPB_SRC_ROOT_FOLDER}/*.h")
+
+set_source_files_properties(${PROTO_GENERATED_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
+set_source_files_properties(${PROTO_SRCS} PROPERTIES GENERATED FALSE)
 
 message(STATUS "Creating NanoPB target...Done!")
 
@@ -2179,7 +2183,7 @@ add_library(mbed_lib ${MBED_SRCS} mbed_config.h)
 
 target_include_directories(mbed_lib PUBLIC ${MBED_INCLUDE_DIRS})
 
-set(PROTO_FILES ${PROTO_SRCS} ${PROTO_HDRS})
+set(PROTO_FILES ${PROTO_GENERATED_SRCS} ${PROTO_HDRS})
 
 add_executable(igvc-firmware-mbed main.cpp ${PROTO_FILES})
 target_link_libraries(igvc-firmware-mbed mbed_lib)
