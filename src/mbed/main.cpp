@@ -1,21 +1,20 @@
 #include "mbed.h"
 
 #include <cstring>
-#include <cstdlib>
 #include <string>
 
 #define DEBUG false
 
-#include "igvc.pb.h"
 #include <EthernetInterface.h>
 #include <pb_decode.h>
 #include <pb_encode.h>
+#include "igvc.pb.h"
 
 /* ethernet setup variables */
-#define ECHO_SERVER_PORT 7
+#define SERVER_PORT 5333
 #define BUFFER_SIZE 256
-#define MAX_MESSAGES 1 // backlog of messages the server should hold
-#define TIMEOUT_MS 50  // timeout for blocking read operations
+#define MAX_MESSAGES 1  // backlog of messages the server should hold
+#define TIMEOUT_MS 50   // timeout for blocking read operations
 
 /* hardware definitions */
 Timer g_timer;
@@ -36,7 +35,8 @@ InterruptIn g_encoder_right_pin_a(p26);
 DigitalIn g_encoder_right_pin_b(p25);
 AnalogIn g_battery(p19);
 
-struct SpeedPair {
+struct SpeedPair
+{
   unsigned char left;
   unsigned char right;
 };
@@ -92,6 +92,10 @@ int g_pwm_l = 0;
 int g_pwm_r = 0;
 int g_e_stop_output;
 
+SpeedPair g_speed_pair;
+uint32_t g_left_output;
+uint32_t g_right_output;
+
 /* encoder values */
 volatile int g_tick_data_right = 0;
 volatile int g_tick_data_left = 0;
@@ -105,27 +109,54 @@ const double g_meters_per_tick = g_wheel_circum / (g_ticks_per_rev * g_gear_rati
 /* estop logic */
 int g_estop = 1;
 
-int main() {
+int main()
+{
   //    /* Read PCON register */
-//  printf("PCON: 0x%x\n", *((unsigned int *)0x400FC180));
-//  *(unsigned int *)0x400fc180 |= 0xf;
+  //  printf("PCON: 0x%x\n", *((unsigned int *)0x400FC180));
+  //  *(unsigned int *)0x400fc180 |= 0xf;
 
+  Serial pc(USBTX, USBRX);
   /* Open the server (mbed) via the EthernetInterface class */
-  printf("Setting up ethernet interface...\r\n");
+  pc.printf("Connecting...\r\n");
   EthernetInterface net;
-  net.connect();
+  constexpr const char* mbed_ip = "192.168.1.20";
+  constexpr const char* netmask = "255.255.255.0";
+  constexpr const char* computer_ip = "192.168.1.21";
 
-  TCPSocket socket;
-  socket.open(&net);
-  char const *ip = "192.168.1.20"; // server ip address
-  socket.connect(ip);
-  printf("Server IP Address is: %s\r\n", ip);
+  if (int ret = net.set_network(mbed_ip, netmask, computer_ip); ret != 0)
+  {
+    pc.printf("Error performing set_network(). Error code: %i\r\n", ret);
+    return 1;
+  }
+  if (int ret = net.connect(); ret != 0)
+  {
+    pc.printf("Error performing connect(). Error code: %i\r\n", ret);
+    return 1;
+  }
+
+  const char *ip = net.get_ip_address();
+  pc.printf("MBED's IP address is: %s\n", ip ? ip : "No IP");
 
   /* Instantiate a TCP Socket to function as the server and bind it to the
    * specified port */
   TCPSocket server_socket;
-  server_socket.bind(ECHO_SERVER_PORT);
-  server_socket.listen();
+  if (int ret = server_socket.open(&net); ret != 0)
+  {
+    pc.printf("Error opening TCPSocket. Error code: %i\r\n", ret);
+    return 1;
+  }
+
+  if (int ret = server_socket.bind(mbed_ip, SERVER_PORT); ret != 0)
+  {
+    pc.printf("Error binding TCPSocket. Error code: %i\r\n", ret);
+    return 1;
+  }
+
+  if (int ret = server_socket.listen(1); ret != 0)
+  {
+    pc.printf("Error listening. Error code: %i\r\n", ret);
+    return 1;
+  }
 
   g_my_led1 = 1;
 
@@ -140,22 +171,24 @@ int main() {
   g_timer.start();
 
   /* Instantiage a TCP socket to serve as the client */
-  TCPSocket *client;
+  TCPSocket *client = nullptr;
 
-  while (true) {
+  while (true)
+  {
     g_my_led2 = 1;
     /* wait for a new TCP Connection */
-    printf("Waiting for new connection...\r\n");
+    pc.printf("Waiting for new connection...\r\n");
     client = server_socket.accept();
     g_my_led2 = 0;
 
-    printf("accepted new client\r\n");
     SocketAddress socket_address;
     client->getpeername(&socket_address);
-    printf("Connection from: %s\r\n", socket_address.get_ip_address());
+    pc.printf("Accepted client from %s\r\n", socket_address.get_ip_address());
+
     g_estop = 1;
 
-    while (true) {
+    while (true)
+    {
       /* read data into the buffer. This call blocks until data is read */
       char buffer[BUFFER_SIZE];
       int n = client->recv(buffer, sizeof(buffer) - 1);
@@ -165,34 +198,39 @@ int main() {
       - if n == 0 then the client closed the connection
       - otherwise, n is the number of bytes read
       */
-      if (n < 0) {
-        if (DEBUG) {
+      if (n < 0)
+      {
+        if (DEBUG)
+        {
           printf("Received empty buffer\n");
         }
         wait_ms(10);
         continue;
-      } if (n == 0) {
-        printf("Client Closed Connection\n");
+      }
+      if (n == 0)
+      {
+        pc.printf("Client Closed Connection\n");
         break;
-      } 
-        if (DEBUG) {
-          printf("Received Request of size: %d\n", n);
-        }
-      
+      }
+      if (DEBUG)
+      {
+        printf("Received Request of size: %d\n", n);
+      }
+
 
       /* protobuf message to hold request from client */
       RequestMessage request = RequestMessage_init_zero;
       bool istatus;
 
       /* Create a stream that reads from the buffer. */
-      pb_istream_t istream =
-          pb_istream_from_buffer(reinterpret_cast<uint8_t *>(buffer), n);
+      pb_istream_t istream = pb_istream_from_buffer(reinterpret_cast<uint8_t *>(buffer), n);
 
       /* decode the message */
       istatus = pb_decode(&istream, RequestMessage_fields, &request);
 
       /* check for any errors.. */
-      if (!istatus) {
+      if (!istatus)
+      {
         printf("Decoding failed: %s\n", PB_GET_ERROR(&istream));
         continue;
       }
@@ -200,15 +238,19 @@ int main() {
       parseRequest(request);
 
       /* reset the timer */
-      if (g_timer.read_ms() > pow(2, 20)) {
+      if (g_timer.read_ms() > pow(2, 20))
+      {
         g_timer.reset();
         g_last_cmd_time = 0;
       }
 
       /* estop logic */
-      if (g_e_stop_status.read() == 0) {
+      if (g_e_stop_status.read() == 0)
+      {
         triggerEstop();
-      } else {
+      }
+      else
+      {
         g_estop = 1;
         g_e_stop_light = 0;
       }
@@ -216,18 +258,20 @@ int main() {
       /* update motor velocities with PID */
       pid();
 
-      if (!sendResponse(*client)) {
+      if (!sendResponse(*client))
+      {
         printf("Couldn't send response to client!\r\n");
         continue;
       }
     }
-    printf("Closing rip..\r\n");
+    pc.printf("Closing rip..\r\n");
     triggerEstop();
     client->close();
   }
 }
 
-bool sendResponse(TCPSocket &client) {
+bool sendResponse(TCPSocket &client)
+{
   /* protocol buffer to hold response message */
   ResponseMessage response = ResponseMessage_init_zero;
 
@@ -237,8 +281,7 @@ bool sendResponse(TCPSocket &client) {
   bool ostatus;
 
   /* Create a stream that will write to our buffer. */
-  pb_ostream_t ostream =
-      pb_ostream_from_buffer(responsebuffer, sizeof(responsebuffer));
+  pb_ostream_t ostream = pb_ostream_from_buffer(responsebuffer, sizeof(responsebuffer));
 
   /* Fill in the message fields */
   response.has_p_l = true;
@@ -256,6 +299,9 @@ bool sendResponse(TCPSocket &client) {
   response.has_kv_l = true;
   response.has_kv_r = true;
 
+  response.has_left_output = true;
+  response.has_right_output = true;
+
   response.p_l = static_cast<float>(g_p_l);
   response.p_r = static_cast<float>(g_p_r);
   response.i_l = static_cast<float>(g_i_l);
@@ -272,16 +318,21 @@ bool sendResponse(TCPSocket &client) {
   response.kv_l = static_cast<float>(g_kv_l);
   response.kv_r = static_cast<float>(g_kv_r);
 
+  response.left_output = g_left_output;
+  response.right_output = g_right_output;
+
   /* encode the message */
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
   response_length = ostream.bytes_written;
 
-  if (DEBUG) {
+  if (DEBUG)
+  {
     printf("Sending message of length: %zu\n", response_length);
   }
 
   /* Then just check for any errors.. */
-  if (!ostatus) {
+  if (!ostatus)
+  {
     printf("Encoding failed: %s\n", PB_GET_ERROR(&ostream));
     return false;
   }
@@ -290,7 +341,8 @@ bool sendResponse(TCPSocket &client) {
   return true;
 }
 
-void triggerEstop() {
+void triggerEstop()
+{
   // If get 5V, since inverted, meaning disabled on motors
   g_estop = 0;
   g_desired_speed_l = 0;
@@ -307,9 +359,11 @@ void triggerEstop() {
 Update global variables using most recent client request.
 @param[in] req RequestMessage protobuf with desired values
 */
-void parseRequest(const RequestMessage &req) {
+void parseRequest(const RequestMessage &req)
+{
   /* request contains PID values */
-  if (req.has_p_l) {
+  if (req.has_p_l)
+  {
     g_p_l = req.p_l;
     g_p_r = req.p_r;
     g_d_l = req.d_l;
@@ -320,24 +374,33 @@ void parseRequest(const RequestMessage &req) {
     g_kv_r = req.kv_r;
   }
   /* request contains motor velocities */
-  if (req.has_speed_l) {
+  if (req.has_speed_l)
+  {
     g_desired_speed_l = req.speed_l;
     g_desired_speed_r = req.speed_r;
   }
 }
 
-void tickRight() {
-  if (g_encoder_right_pin_a.read() == g_encoder_right_pin_b.read()) {
+void tickRight()
+{
+  if (g_encoder_right_pin_a.read() == g_encoder_right_pin_b.read())
+  {
     ++g_tick_data_right;
-  } else {
+  }
+  else
+  {
     --g_tick_data_right;
   }
 }
 
-void tickLeft() {
-  if (g_encoder_left_pin_a.read() == g_encoder_left_pin_b.read()) {
+void tickLeft()
+{
+  if (g_encoder_left_pin_a.read() == g_encoder_left_pin_b.read())
+  {
     ++g_tick_data_left;
-  } else {
+  }
+  else
+  {
     --g_tick_data_left;
   }
 }
@@ -346,11 +409,13 @@ void tickLeft() {
 // e(t) on velocity, not position Changes to before 1: Derivative on PV 2:
 // Corrected integral 3: Low pass on Derivative 4: Clamping on Integral 5: Feed
 // forward
-void pid() {
+void pid()
+{
   // 1: Calculate dt
   g_d_t_sec = static_cast<float>(g_timer.read_ms() - g_last_loop_time) / 1000.0;
 
-  if (g_timer.read() >= 1700) {
+  if (g_timer.read() >= 1700)
+  {
     g_timer.reset();
     g_last_loop_time = 0;
   }
@@ -371,10 +436,8 @@ void pid() {
   // 4: Calculate Derivative Error
   // TODO(oswinso): Make alpha a parameter
   float alpha = 0.75;
-  g_low_passed_pv_l = alpha * (g_actual_speed_last_l - g_actual_speed_l) / g_d_t_sec +
-                    (1 - alpha) * g_low_passed_pv_l;
-  g_low_passed_pv_r = alpha * (g_actual_speed_last_r - g_actual_speed_r) / g_d_t_sec +
-                    (1 - alpha) * g_low_passed_pv_r;
+  g_low_passed_pv_l = alpha * (g_actual_speed_last_l - g_actual_speed_l) / g_d_t_sec + (1 - alpha) * g_low_passed_pv_l;
+  g_low_passed_pv_r = alpha * (g_actual_speed_last_r - g_actual_speed_r) / g_d_t_sec + (1 - alpha) * g_low_passed_pv_r;
 
   g_d_error_l = g_low_passed_pv_l;
   g_d_error_r = g_low_passed_pv_r;
@@ -407,28 +470,35 @@ void pid() {
   g_pwm_r = min(63, max(-63, g_pwm_r)) + 64;
 
   // 8: Deadband
-  if (abs(g_actual_speed_l) < 0.16 && abs(g_desired_speed_l) < 0.16) {
+  if (abs(g_actual_speed_l) < 0.16 && abs(g_desired_speed_l) < 0.16)
+  {
     g_pwm_l = 64;
   }
 
-  if (abs(g_actual_speed_r) < 0.16 && abs(g_desired_speed_r) < 0.16) {
+  if (abs(g_actual_speed_r) < 0.16 && abs(g_desired_speed_r) < 0.16)
+  {
     g_pwm_r = 64;
   }
 
-  if (g_pwm_l < 40 && g_pwm_r < 40) {
+  if (g_pwm_l < 40 && g_pwm_r < 40)
+  {
     g_my_le_d4 = 1;
     g_pwm_l = 64;
     g_pwm_r = 64;
   }
 
-  if (g_actual_speed_l < -0.5 && g_actual_speed_r < -0.5) {
+  if (g_actual_speed_l < -0.5 && g_actual_speed_r < -0.5)
+  {
     g_my_le_d3 = 1;
     g_pwm_l = 64;
     g_pwm_r = 64;
   }
 
-  setSpeeds(
-      {static_cast<unsigned char>(g_pwm_l), static_cast<unsigned char>(g_pwm_r)});
+  g_speed_pair = { static_cast<unsigned char>(g_pwm_l), static_cast<unsigned char>(g_pwm_r) };
+  setSpeeds(g_speed_pair);
+
+  g_left_output = static_cast<uint32_t>(g_pwm_l);
+  g_right_output = static_cast<uint32_t>(g_pwm_r);
 
   /*
       Be aware that this motor board does not interface with the motor
@@ -442,13 +512,17 @@ void pid() {
   g_actual_speed_last_r = g_actual_speed_r;
 }
 
-void bothMotorStop() { g_serial.putc(0); }
+void bothMotorStop()
+{
+  g_serial.putc(0);
+}
 
 /**
  * Sets speed for both motors. Right motor is 0 - 127, Left motor is 128 - 255
  * @param c
  */
-void setSpeeds(SpeedPair speed) {
+void setSpeeds(SpeedPair speed)
+{
   // Right motor
   g_serial.putc(speed.right);
 
