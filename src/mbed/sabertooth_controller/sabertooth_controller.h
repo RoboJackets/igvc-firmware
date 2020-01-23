@@ -19,7 +19,7 @@ class SaberToothController
     void setSpeeds(int right_speed, int left_speed);
 
   private:
-    Serial sabertooth;
+    RawSerial sabertooth;
     unsigned char left_output;
     unsigned char right_output;
 };
