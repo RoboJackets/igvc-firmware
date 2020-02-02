@@ -5,7 +5,7 @@
 #include "igvc.pb.h"
 
 /**
- * For defining constants and miscellaneous functions used by main.cpp
+ * For defining constants used by main.cpp
  * Do NOT use macros; instead define a constant here
  */
 
@@ -26,34 +26,5 @@ const double g_wheel_circum = 1.092;
 const double g_gear_ratio = 32.0;
 const int g_ticks_per_rev = 48;
 const double g_meters_per_tick = g_wheel_circum / (g_ticks_per_rev * g_gear_ratio);
-
-/* desired motor speed (as specified by the client) */
-float g_desired_speed_l = 0;
-float g_desired_speed_r = 0;
-
-/* actual motor speeds */
-float g_actual_speed_l = 0;
-float g_actual_speed_r = 0;
-
-/* PID constants */
-float g_p_l = 0;
-float g_d_l = 0;
-float g_p_r = 0;
-float g_d_r = 0;
-float g_i_l = 0;
-float g_i_r = 0;
-float g_kv_l = 0;
-float g_kv_r = 0;
-
-/* motor outputs */
-uint32_t g_left_output;
-uint32_t g_right_output;
-
-/* encoder values */
-volatile int g_tick_data_right = 0;
-volatile int g_tick_data_left = 0;
-
-/* e-stop logic */
-int g_estop = 1;
 
 #endif //FIRMWARE_UTIL

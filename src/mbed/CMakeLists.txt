@@ -11,10 +11,10 @@ set(CMAKE_C_COMPILER_WORKS TRUE)
 set(CMAKE_CXX_COMPILER_WORKS TRUE)
 
 # force cmake compilers
-set(CMAKE_ASM_COMPILER    "arm-none-eabi-gcc")
-set(CMAKE_C_COMPILER      "arm-none-eabi-gcc")
-set(CMAKE_CXX_COMPILER    "arm-none-eabi-g++")
-set(ELF2BIN               "arm-none-eabi-objcopy")
+set(CMAKE_ASM_COMPILER    "/opt/gcc-arm-none-eabi-8-2018-q4-major/bin/arm-none-eabi-gcc")
+set(CMAKE_C_COMPILER      "/opt/gcc-arm-none-eabi-8-2018-q4-major/bin/arm-none-eabi-gcc")
+set(CMAKE_CXX_COMPILER    "/opt/gcc-arm-none-eabi-8-2018-q4-major/bin/arm-none-eabi-g++")
+set(ELF2BIN               "/opt/gcc-arm-none-eabi-8-2018-q4-major/bin/arm-none-eabi-objcopy")
 
 # if the environment does not specify build type, set to Debug
 IF(NOT CMAKE_BUILD_TYPE)

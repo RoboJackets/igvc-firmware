@@ -8,7 +8,7 @@
 #include <pb_encode.h>
 #include "igvc.pb.h"
 #include "sabertooth_controller/sabertooth_controller.h"
-#include "util.h"
+#include "constants.h"
 
 /* hardware definitions */
 Timer g_timer;
@@ -42,6 +42,35 @@ float g_actual_speed_last_l = 0;
 float g_actual_speed_last_r = 0;
 float g_low_passed_pv_l = 0;
 float g_low_passed_pv_r = 0;
+
+/* desired motor speed (as specified by the client) */
+float g_desired_speed_l = 0;
+float g_desired_speed_r = 0;
+
+/* actual motor speeds */
+float g_actual_speed_l = 0;
+float g_actual_speed_r = 0;
+
+/* PID constants */
+float g_p_l = 0;
+float g_d_l = 0;
+float g_p_r = 0;
+float g_d_r = 0;
+float g_i_l = 0;
+float g_i_r = 0;
+float g_kv_l = 0;
+float g_kv_r = 0;
+
+/* motor outputs */
+uint32_t g_left_output;
+uint32_t g_right_output;
+
+/* encoder values */
+volatile int g_tick_data_right = 0;
+volatile int g_tick_data_left = 0;
+
+/* e-stop logic */
+int g_estop = 1;
 
 /* function prototypes */
 void parseRequest(const RequestMessage &req);
