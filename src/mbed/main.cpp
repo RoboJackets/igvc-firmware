@@ -3,54 +3,30 @@
 #include <cstring>
 #include <string>
 
-#define DEBUG false
-
 #include <EthernetInterface.h>
 #include <pb_decode.h>
 #include <pb_encode.h>
 #include "igvc.pb.h"
 #include "sabertooth_controller/sabertooth_controller.h"
-
-/* ethernet setup variables */
-#define SERVER_PORT 5333
-#define BUFFER_SIZE 256
-#define MAX_MESSAGES 1  // backlog of messages the server should hold
-#define TIMEOUT_MS 50   // timeout for blocking read operations
+#include "util.h"
 
 /* hardware definitions */
 Timer g_timer;
 SaberToothController g_motor_controller;
 
 /* mbed pin definitions */
-DigitalOut g_my_led1(LED1);
-DigitalOut g_my_led2(LED2);
-DigitalOut g_my_le_d3(LED3);
-DigitalOut g_my_le_d4(LED4);
+DigitalOut g_mbed_led1(LED1);
+DigitalOut g_mbed_led2(LED2);
+DigitalOut g_mbed_led3(LED3);
+DigitalOut g_mbed_led4(LED4);
 DigitalOut g_board_led(p8);
-DigitalOut g_e_stop_light(p11);
+DigitalOut g_safety_light_enable(p11);
 DigitalIn g_e_stop_status(p15);
-
+AnalogIn g_battery(p19);
 InterruptIn g_encoder_left_pin_a(p24);
 DigitalIn g_encoder_left_pin_b(p23);
 InterruptIn g_encoder_right_pin_a(p26);
 DigitalIn g_encoder_right_pin_b(p25);
-AnalogIn g_battery(p19);
-
-/* function prototypes */
-void parseRequest(const RequestMessage &req);
-bool sendResponse(TCPSocket &client);
-void tickLeft();
-void tickRight();
-void pid();
-void triggerEstop();
-
-/* desired motor speed (as specified by the client) */
-float g_desired_speed_l = 0;
-float g_desired_speed_r = 0;
-
-/* actual motor speeds */
-float g_actual_speed_l = 0;
-float g_actual_speed_r = 0;
 
 /* PID calculation values */
 long g_last_cmd_time = 0;
@@ -62,39 +38,18 @@ float g_d_error_r = 0;
 float g_i_error_l = 0;
 float g_i_error_r = 0;
 float g_d_t_sec = 0;
-float g_last_error_l = 0;
-float g_last_error_r = 0;
 float g_actual_speed_last_l = 0;
 float g_actual_speed_last_r = 0;
 float g_low_passed_pv_l = 0;
 float g_low_passed_pv_r = 0;
 
-/* PID constants */
-float g_p_l = 0;
-float g_d_l = 0;
-float g_p_r = 0;
-float g_d_r = 0;
-float g_i_l = 0;
-float g_i_r = 0;
-float g_kv_l = 0;
-float g_kv_r = 0;
-int g_e_stop_output;
-
-uint32_t g_left_output;
-uint32_t g_right_output;
-
-/* encoder values */
-volatile int g_tick_data_right = 0;
-volatile int g_tick_data_left = 0;
-
-/* calculation constants */
-const double g_wheel_circum = 1.092;
-const double g_gear_ratio = 32.0;
-const int g_ticks_per_rev = 48;
-const double g_meters_per_tick = g_wheel_circum / (g_ticks_per_rev * g_gear_ratio);
-
-/* estop logic */
-int g_estop = 1;
+/* function prototypes */
+void parseRequest(const RequestMessage &req);
+bool sendResponse(TCPSocket &client);
+void tickLeft();
+void tickRight();
+void pid();
+void triggerEstop();
 
 int main()
 {
@@ -106,11 +61,8 @@ int main()
   /* Open the server (mbed) via the EthernetInterface class */
   pc.printf("Connecting...\r\n");
   EthernetInterface net;
-  constexpr const char* mbed_ip = "192.168.1.20";
-  constexpr const char* netmask = "255.255.255.0";
-  constexpr const char* computer_ip = "192.168.1.21";
 
-  if (int ret = net.set_network(mbed_ip, netmask, computer_ip); ret != 0)
+  if (int ret = net.set_network(g_mbed_ip, g_netmask, g_computer_ip); ret != 0)
   {
     pc.printf("Error performing set_network(). Error code: %i\r\n", ret);
     return 1;
@@ -133,7 +85,7 @@ int main()
     return 1;
   }
 
-  if (int ret = server_socket.bind(mbed_ip, SERVER_PORT); ret != 0)
+  if (int ret = server_socket.bind(g_mbed_ip, g_server_port); ret != 0)
   {
     pc.printf("Error binding TCPSocket. Error code: %i\r\n", ret);
     return 1;
@@ -145,14 +97,14 @@ int main()
     return 1;
   }
 
-  g_my_led1 = 1;
+  g_mbed_led1 = 1;
 
   // Set interrupt function
   g_encoder_left_pin_a.rise(&tickLeft);
   g_encoder_right_pin_a.rise(&tickRight);
 
   wait(0.5);
-  g_my_led1 = 0;
+  g_mbed_led1 = 0;
 
   g_timer.reset();
   g_timer.start();
@@ -162,11 +114,11 @@ int main()
 
   while (true)
   {
-    g_my_led2 = 1;
+    g_mbed_led2 = 1;
     /* wait for a new TCP Connection */
     pc.printf("Waiting for new connection...\r\n");
     client = server_socket.accept();
-    g_my_led2 = 0;
+    g_mbed_led2 = 0;
 
     SocketAddress socket_address;
     client->getpeername(&socket_address);
@@ -177,7 +129,7 @@ int main()
     while (true)
     {
       /* read data into the buffer. This call blocks until data is read */
-      char buffer[BUFFER_SIZE];
+      char buffer[g_buffer_size];
       int n = client->recv(buffer, sizeof(buffer) - 1);
 
       /*
@@ -187,7 +139,7 @@ int main()
       */
       if (n < 0)
       {
-        if (DEBUG)
+        if (g_debug)
         {
           printf("Received empty buffer\n");
         }
@@ -199,7 +151,7 @@ int main()
         pc.printf("Client Closed Connection\n");
         break;
       }
-      if (DEBUG)
+      if (g_debug)
       {
         printf("Received Request of size: %d\n", n);
       }
@@ -231,7 +183,7 @@ int main()
         g_last_cmd_time = 0;
       }
 
-      /* estop logic */
+      /* e-stop logic */
       if (g_e_stop_status.read() == 0)
       {
         triggerEstop();
@@ -239,7 +191,7 @@ int main()
       else
       {
         g_estop = 1;
-        g_e_stop_light = 0;
+        g_safety_light_enable = 0;
       }
 
       /* update motor velocities with PID */
@@ -312,7 +264,7 @@ bool sendResponse(TCPSocket &client)
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
   response_length = ostream.bytes_written;
 
-  if (DEBUG)
+  if (g_debug)
   {
     printf("Sending message of length: %zu\n", response_length);
   }
@@ -337,7 +289,7 @@ void triggerEstop()
   g_i_error_l = 0;
   g_i_error_r = 0;
   g_motor_controller.stopMotors();
-  g_e_stop_light = 1;
+  g_safety_light_enable = 1;
 }
 
 /*
@@ -465,8 +417,6 @@ void pid()
   g_left_output = g_motor_controller.getLeftOutput();
   g_right_output = g_motor_controller.getRightOutput();
 
-  g_last_error_l = g_error_l;
-  g_last_error_r = g_error_r;
   g_actual_speed_last_l = g_actual_speed_l;
   g_actual_speed_last_r = g_actual_speed_r;
 }
