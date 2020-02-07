@@ -9,6 +9,7 @@
 #include <pb_decode.h>
 #include <pb_encode.h>
 #include "igvc.pb.h"
+#include "encoder_pair/encoder_pair.h"
 
 /* ethernet setup variables */
 #define SERVER_PORT 5333
@@ -19,6 +20,7 @@
 /* hardware definitions */
 Timer g_timer;
 Serial g_serial(p13, NC, 9600);
+EncoderPair encoders;
 
 /* mbed pin definitions */
 DigitalOut g_my_led1(LED1);
@@ -28,11 +30,6 @@ DigitalOut g_my_le_d4(LED4);
 DigitalOut g_board_led(p8);
 DigitalOut g_e_stop_light(p11);
 DigitalIn g_e_stop_status(p15);
-
-InterruptIn g_encoder_left_pin_a(p24);
-DigitalIn g_encoder_left_pin_b(p23);
-InterruptIn g_encoder_right_pin_a(p26);
-DigitalIn g_encoder_right_pin_b(p25);
 AnalogIn g_battery(p19);
 
 struct SpeedPair
@@ -44,8 +41,6 @@ struct SpeedPair
 /* function prototypes */
 void parseRequest(const RequestMessage &req);
 bool sendResponse(TCPSocket &client);
-void tickLeft();
-void tickRight();
 void pid();
 void setSpeeds(SpeedPair speed);
 void bothMotorStop();
@@ -95,10 +90,6 @@ int g_e_stop_output;
 SpeedPair g_speed_pair;
 uint32_t g_left_output;
 uint32_t g_right_output;
-
-/* encoder values */
-volatile int g_tick_data_right = 0;
-volatile int g_tick_data_left = 0;
 
 /* calculation constants */
 const double g_wheel_circum = 1.092;
@@ -157,15 +148,6 @@ int main()
     pc.printf("Error listening. Error code: %i\r\n", ret);
     return 1;
   }
-
-  g_my_led1 = 1;
-
-  // Set interrupt function
-  g_encoder_left_pin_a.rise(&tickLeft);
-  g_encoder_right_pin_a.rise(&tickRight);
-
-  wait(0.5);
-  g_my_led1 = 0;
 
   g_timer.reset();
   g_timer.start();
@@ -381,30 +363,6 @@ void parseRequest(const RequestMessage &req)
   }
 }
 
-void tickRight()
-{
-  if (g_encoder_right_pin_a.read() == g_encoder_right_pin_b.read())
-  {
-    ++g_tick_data_right;
-  }
-  else
-  {
-    --g_tick_data_right;
-  }
-}
-
-void tickLeft()
-{
-  if (g_encoder_left_pin_a.read() == g_encoder_left_pin_b.read())
-  {
-    ++g_tick_data_left;
-  }
-  else
-  {
-    --g_tick_data_left;
-  }
-}
-
 // https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation but with
 // e(t) on velocity, not position Changes to before 1: Derivative on PV 2:
 // Corrected integral 3: Low pass on Derivative 4: Clamping on Integral 5: Feed
@@ -423,11 +381,8 @@ void pid()
   g_last_loop_time = g_timer.read_ms();
 
   // 2: Convert encoder values into velocity
-  g_actual_speed_l = (g_meters_per_tick * g_tick_data_left) / g_d_t_sec;
-  g_actual_speed_r = (g_meters_per_tick * g_tick_data_right) / g_d_t_sec;
-
-  g_tick_data_left = 0;
-  g_tick_data_right = 0;
+  g_actual_speed_l = (g_meters_per_tick * encoders.getLeftTicks()) / g_d_t_sec;
+  g_actual_speed_r = (g_meters_per_tick * encoders.getRightTicks()) / g_d_t_sec;
 
   // 3: Calculate error
   g_error_l = g_desired_speed_l - g_actual_speed_l;
