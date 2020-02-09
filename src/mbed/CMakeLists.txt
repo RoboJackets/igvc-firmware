@@ -2183,11 +2183,11 @@ add_library(mbed_lib ${MBED_SRCS} mbed_config.h)
 
 target_include_directories(mbed_lib PUBLIC ${MBED_INCLUDE_DIRS})
 
-set(PROTO_FILES ${PROTO_GENERATED_SRCS} ${PROTO_HDRS}
+set(PROTO_FILES ${PROTO_GENERATED_SRCS} ${PROTO_HDRS})
+
+add_executable(igvc-firmware-mbed main.cpp ${PROTO_FILES}
         encoder_pair/encoder_pair.cpp
         )
-
-add_executable(igvc-firmware-mbed main.cpp ${PROTO_FILES})
 target_link_libraries(igvc-firmware-mbed mbed_lib)
 target_include_directories(igvc-firmware-mbed PRIVATE ${MBED_INCLUDE_DIRS})
 
