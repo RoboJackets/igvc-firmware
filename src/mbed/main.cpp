@@ -90,7 +90,6 @@ int g_d_pwm_l = 0;
 int g_d_pwm_r = 0;
 int g_pwm_l = 0;
 int g_pwm_r = 0;
-int g_e_stop_output;
 
 SpeedPair g_speed_pair;
 uint32_t g_left_output;
