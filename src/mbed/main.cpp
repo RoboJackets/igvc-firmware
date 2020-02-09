@@ -26,8 +26,8 @@ DigitalOut g_my_led2(LED2);
 DigitalOut g_my_le_d3(LED3);
 DigitalOut g_my_le_d4(LED4);
 DigitalOut g_board_led(p8);
-DigitalOut g_e_stop_light(p11);
-DigitalIn g_e_stop_status(p15);
+DigitalOut g_safety_light_enable(p11);
+InterruptIn g_e_stop_status(p15);
 
 InterruptIn g_encoder_left_pin_a(p24);
 DigitalIn g_encoder_left_pin_b(p23);
@@ -90,7 +90,6 @@ int g_d_pwm_l = 0;
 int g_d_pwm_r = 0;
 int g_pwm_l = 0;
 int g_pwm_r = 0;
-int g_e_stop_output;
 
 SpeedPair g_speed_pair;
 uint32_t g_left_output;
@@ -106,14 +105,15 @@ const double g_gear_ratio = 32.0;
 const int g_ticks_per_rev = 48;
 const double g_meters_per_tick = g_wheel_circum / (g_ticks_per_rev * g_gear_ratio);
 
-/* estop logic */
-int g_estop = 1;
+/* e-stop logic */
+int g_e_stop = 1;
 
 int main()
 {
   //    /* Read PCON register */
   //  printf("PCON: 0x%x\n", *((unsigned int *)0x400FC180));
   //  *(unsigned int *)0x400fc180 |= 0xf;
+  g_e_stop_status.fall(callback(&triggerEstop));
 
   Serial pc(USBTX, USBRX);
   /* Open the server (mbed) via the EthernetInterface class */
@@ -185,8 +185,6 @@ int main()
     client->getpeername(&socket_address);
     pc.printf("Accepted client from %s\r\n", socket_address.get_ip_address());
 
-    g_estop = 1;
-
     while (true)
     {
       /* read data into the buffer. This call blocks until data is read */
@@ -244,15 +242,11 @@ int main()
         g_last_cmd_time = 0;
       }
 
-      /* estop logic */
+      /* e-stop logic */
       if (g_e_stop_status.read() == 0)
       {
-        triggerEstop();
-      }
-      else
-      {
-        g_estop = 1;
-        g_e_stop_light = 0;
+        g_e_stop = 1;
+        g_safety_light_enable = 0;
       }
 
       /* update motor velocities with PID */
@@ -313,7 +307,7 @@ bool sendResponse(TCPSocket &client)
   response.speed_r = static_cast<float>(g_actual_speed_r);
   response.dt_sec = static_cast<float>(g_d_t_sec);
   response.voltage = static_cast<float>(g_battery.read() * 3.3 * 521 / 51);
-  response.estop = static_cast<bool>(g_estop);
+  response.estop = static_cast<bool>(g_e_stop);
 
   response.kv_l = static_cast<float>(g_kv_l);
   response.kv_r = static_cast<float>(g_kv_r);
@@ -344,7 +338,7 @@ bool sendResponse(TCPSocket &client)
 void triggerEstop()
 {
   // If get 5V, since inverted, meaning disabled on motors
-  g_estop = 0;
+  g_e_stop = 0;
   g_desired_speed_l = 0;
   g_desired_speed_r = 0;
   g_pwm_l = 0;
@@ -352,7 +346,7 @@ void triggerEstop()
   g_i_error_l = 0;
   g_i_error_r = 0;
   bothMotorStop();
-  g_e_stop_light = 1;
+  g_safety_light_enable = 1;
 }
 
 /*
