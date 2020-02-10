@@ -10,6 +10,7 @@
 #include <pb_encode.h>
 #include "igvc.pb.h"
 #include "encoder_pair/encoder_pair.h"
+#include "sabertooth_controller/sabertooth_controller.h"
 
 /* ethernet setup variables */
 #define SERVER_PORT 5333
@@ -19,8 +20,8 @@
 
 /* hardware definitions */
 Timer g_timer;
-Serial g_serial(p13, NC, 9600);
 EncoderPair encoders;
+SaberToothController g_motor_controller;
 
 /* mbed pin definitions */
 DigitalOut g_my_led1(LED1);
@@ -32,18 +33,10 @@ DigitalOut g_e_stop_light(p11);
 DigitalIn g_e_stop_status(p15);
 AnalogIn g_battery(p19);
 
-struct SpeedPair
-{
-  unsigned char left;
-  unsigned char right;
-};
-
 /* function prototypes */
 void parseRequest(const RequestMessage &req);
 bool sendResponse(TCPSocket &client);
 void pid();
-void setSpeeds(SpeedPair speed);
-void bothMotorStop();
 void triggerEstop();
 
 /* desired motor speed (as specified by the client) */
@@ -80,14 +73,8 @@ float g_i_l = 0;
 float g_i_r = 0;
 float g_kv_l = 0;
 float g_kv_r = 0;
-
-int g_d_pwm_l = 0;
-int g_d_pwm_r = 0;
-int g_pwm_l = 0;
-int g_pwm_r = 0;
 int g_e_stop_output;
 
-SpeedPair g_speed_pair;
 uint32_t g_left_output;
 uint32_t g_right_output;
 
@@ -329,11 +316,9 @@ void triggerEstop()
   g_estop = 0;
   g_desired_speed_l = 0;
   g_desired_speed_r = 0;
-  g_pwm_l = 0;
-  g_pwm_r = 0;
   g_i_error_l = 0;
   g_i_error_r = 0;
-  bothMotorStop();
+  g_motor_controller.stopMotors();
   g_e_stop_light = 1;
 }
 
@@ -416,71 +401,27 @@ void pid()
   float feedforward_left = g_kv_l * g_desired_speed_l;
   float feedforward_right = g_kv_r * g_desired_speed_r;
 
-  // Apparently motor commands are inverted somehow
-  g_pwm_l = -static_cast<int>(round(feedforward_left + feedback_left));
-  g_pwm_r = -static_cast<int>(round(feedforward_right + feedback_right));
-
-  // Map from 1 - 127, since 0 causes both motors to stop
-  g_pwm_l = min(63, max(-63, g_pwm_l)) + 64;
-  g_pwm_r = min(63, max(-63, g_pwm_r)) + 64;
+  int left_signal = static_cast<int>(round(feedforward_left + feedback_left));
+  int right_signal = static_cast<int>(round(feedforward_right + feedback_right));
 
   // 8: Deadband
   if (abs(g_actual_speed_l) < 0.16 && abs(g_desired_speed_l) < 0.16)
   {
-    g_pwm_l = 64;
+    left_signal = 0;
   }
 
   if (abs(g_actual_speed_r) < 0.16 && abs(g_desired_speed_r) < 0.16)
   {
-    g_pwm_r = 64;
+    right_signal = 0;
   }
 
-  if (g_pwm_l < 40 && g_pwm_r < 40)
-  {
-    g_my_le_d4 = 1;
-    g_pwm_l = 64;
-    g_pwm_r = 64;
-  }
+  g_motor_controller.setSpeeds(right_signal, left_signal);
 
-  if (g_actual_speed_l < -0.5 && g_actual_speed_r < -0.5)
-  {
-    g_my_le_d3 = 1;
-    g_pwm_l = 64;
-    g_pwm_r = 64;
-  }
-
-  g_speed_pair = { static_cast<unsigned char>(g_pwm_l), static_cast<unsigned char>(g_pwm_r) };
-  setSpeeds(g_speed_pair);
-
-  g_left_output = static_cast<uint32_t>(g_pwm_l);
-  g_right_output = static_cast<uint32_t>(g_pwm_r);
-
-  /*
-      Be aware that this motor board does not interface with the motor
-      controller with PWM. "PWM" here are mere residue from old arduino code
-      -255 to 255 values are handled in motor.cpp file, mapped to 0 to 127.
-  */
+  g_left_output = g_motor_controller.getLeftOutput();
+  g_right_output = g_motor_controller.getRightOutput();
 
   g_last_error_l = g_error_l;
   g_last_error_r = g_error_r;
   g_actual_speed_last_l = g_actual_speed_l;
   g_actual_speed_last_r = g_actual_speed_r;
-}
-
-void bothMotorStop()
-{
-  g_serial.putc(0);
-}
-
-/**
- * Sets speed for both motors. Right motor is 0 - 127, Left motor is 128 - 255
- * @param c
- */
-void setSpeeds(SpeedPair speed)
-{
-  // Right motor
-  g_serial.putc(speed.right);
-
-  // Left motor
-  g_serial.putc(static_cast<char>(128) + speed.left);
 }
