@@ -1,12 +1,12 @@
 Mbed Maintenance
-----------------
+================
 
 Is there an issue with the mbed on the robot? Then this is the place for you.
 This folder contains useful files for debugging the mbed. This README will 
 document things we discover about the mbed to help you debug things later.
 
 Mbed
-====
+----
 
 IGVC uses the LPC1768 mbed from NXP. The latest information about it can be found at
 the [mbed website for it](https://os.mbed.com/platforms/mbed-LPC1768/). This
@@ -15,7 +15,7 @@ more. For the status of the mbeds that we own, check the spreadsheet in the IGVC
 drive. Be sure to update that spreadsheet if anything happens to the mbeds.
 
 Firmware
-========
+--------
 
 All the mbeds used by IGVC are up-to-date with the latest firmware. You should
 not have to reflash the firmware, unless for some reason you downgraded it.
@@ -25,7 +25,7 @@ and power cycle (turn off and on again) the mbed. It should take a little to
 reconnect, but when it reappears, the .if file should be gone.
 
 File Management
-===============
+---------------
 
 The mbed has a file system that you can interface with over USB. This system
 lets you easily upload code to the mbed to execute. However, it can sometimes
@@ -44,7 +44,7 @@ the file (instead of uploading a separate file) or deleting the currently
 running program.
 
 Blinky
-======
+------
 
 Often when debugging the IGVC firmware, it can be useful to see if the mbed is
 running code properly. For convenience, this directory contains two test
@@ -56,7 +56,7 @@ it is likely that the mbed is broken. If only the first works, then there may be
 an issue with the firmware. This would be a good time to reflash the mbed.
 
 FAQ
-===
+---
 
 Q: Is it ok if the mbed is plugged into the logic board and computer at the same
 time?
