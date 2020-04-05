@@ -10,6 +10,7 @@
 #include "encoder_pair/encoder_pair.h"
 #include "sabertooth_controller/sabertooth_controller.h"
 #include "constants.h"
+#include "pid.h"
 
 /* hardware definitions */
 SaberToothController g_motor_controller;
@@ -57,106 +58,9 @@ int g_estop = 1;
 /* function prototypes */
 void parseRequest(const RequestMessage &req);
 bool sendResponse(TCPSocket &client);
-void pid_thread();
 void triggerEstop();
 
 Thread control_thread;
-Mutex e_stop_mutex;
-Mutex network_mutex;
-
-void pid_thread()
-{
-  Timer timer;
-  EncoderPair encoders;
-
-  int last_loop_time = 0;
-  float error_l = 0;
-  float error_r = 0;
-  float d_error_l = 0;
-  float d_error_r = 0;
-  float actual_speed_last_l = 0;
-  float actual_speed_last_r = 0;
-  float low_passed_pv_l = 0;
-  float low_passed_pv_r = 0;
-
-  timer.reset();
-  timer.start();
-
-  // https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation but with
-  // e(t) on velocity, not position Changes to before 1: Derivative on PV 2:
-  // Corrected integral 3: Low pass on Derivative 4: Clamping on Integral 5: Feed
-  // forward
-  while (true)
-  {
-    // 1: Calculate dt
-    g_d_t_sec = static_cast<float>(timer.read_ms() - last_loop_time) / 1000.0;
-
-    if (timer.read() >= 1700)
-    {
-      timer.reset();
-      last_loop_time = 0;
-    }
-    last_loop_time = timer.read_ms();
-
-    // 2: Convert encoder values into velocity
-    g_actual_speed_l = (g_meters_per_tick * encoders.getLeftTicks()) / g_d_t_sec;
-    g_actual_speed_r = (g_meters_per_tick * encoders.getRightTicks()) / g_d_t_sec;
-
-    // 3: Calculate error
-    error_l = g_desired_speed_l - g_actual_speed_l;
-    error_r = g_desired_speed_r - g_actual_speed_r;
-
-    // 4: Calculate Derivative Error
-    // TODO(oswinso): Make alpha a parameter
-    float alpha = 0.75;
-    low_passed_pv_l = alpha * (actual_speed_last_l - g_actual_speed_l) / g_d_t_sec + (1 - alpha) * low_passed_pv_l;
-    low_passed_pv_r = alpha * (actual_speed_last_r - g_actual_speed_r) / g_d_t_sec + (1 - alpha) * low_passed_pv_r;
-
-    d_error_l = low_passed_pv_l;
-    d_error_r = low_passed_pv_r;
-
-    // 5: Calculate Integral Error
-    // 5a: Calculate Error
-    g_i_error_l += error_l * g_d_t_sec;
-    g_i_error_r += error_r * g_d_t_sec;
-
-    // 5b: Perform clamping
-    // TODO(oswinso): make clamping a parameter
-    float i_clamp = 60 / g_i_l;
-    g_i_error_l = min(i_clamp, max(-i_clamp, g_i_error_l));
-    g_i_error_r = min(i_clamp, max(-i_clamp, g_i_error_r));
-
-    // 6: Sum P, I and D terms
-    float feedback_left = g_p_l * error_l + g_d_l * d_error_l + g_i_l * g_i_error_l;
-    float feedback_right = g_p_r * error_r + g_d_r * d_error_r + g_i_r * g_i_error_r;
-
-    // 7: Calculate feedforward
-    float feedforward_left = g_kv_l * g_desired_speed_l;
-    float feedforward_right = g_kv_r * g_desired_speed_r;
-
-    int left_signal = static_cast<int>(round(feedforward_left + feedback_left));
-    int right_signal = static_cast<int>(round(feedforward_right + feedback_right));
-
-    // 8: Deadband
-    if (abs(g_actual_speed_l) < 0.16 && abs(g_desired_speed_l) < 0.16)
-    {
-      left_signal = 0;
-    }
-
-    if (abs(g_actual_speed_r) < 0.16 && abs(g_desired_speed_r) < 0.16)
-    {
-      right_signal = 0;
-    }
-
-    g_motor_controller.setSpeeds(right_signal, left_signal);
-
-    g_left_output = g_motor_controller.getLeftOutput();
-    g_right_output = g_motor_controller.getRightOutput();
-
-    actual_speed_last_l = g_actual_speed_l;
-    actual_speed_last_r = g_actual_speed_r;
-  }
-}
 
 int main()
 {
@@ -171,7 +75,7 @@ int main()
   pc.printf("Connecting...\r\n");
   EthernetInterface net;
 
-  if (int ret = net.set_network(g_mbed_ip, g_netmask, g_computer_ip); ret != 0)
+  if (int ret = net.set_network(G_MBED_IP, G_NETMASK, G_COMPUTER_IP); ret != 0)
   {
     pc.printf("Error performing set_network(). Error code: %i\r\n", ret);
     return 1;
@@ -194,7 +98,7 @@ int main()
     return 1;
   }
 
-  if (int ret = server_socket.bind(g_mbed_ip, g_server_port); ret != 0)
+  if (int ret = server_socket.bind(G_MBED_IP, G_SERVER_PORT); ret != 0)
   {
     pc.printf("Error binding TCPSocket. Error code: %i\r\n", ret);
     return 1;
@@ -226,7 +130,7 @@ int main()
     while (true)
     {
       /* read data into the buffer. This call blocks until data is read */
-      char buffer[g_buffer_size];
+      char buffer[G_BUFFER_SIZE];
       int n = client->recv(buffer, sizeof(buffer) - 1);
 
       /*
@@ -236,7 +140,7 @@ int main()
       */
       if (n < 0)
       {
-        if (g_debug)
+        if (G_DEBUG)
         {
           printf("Received empty buffer\n");
         }
@@ -248,7 +152,7 @@ int main()
         pc.printf("Client Closed Connection\n");
         break;
       }
-      if (g_debug)
+      if (G_DEBUG)
       {
         printf("Received Request of size: %d\n", n);
       }
@@ -351,7 +255,7 @@ bool sendResponse(TCPSocket &client)
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
   response_length = ostream.bytes_written;
 
-  if (g_debug)
+  if (G_DEBUG)
   {
     printf("Sending message of length: %zu\n", response_length);
   }
