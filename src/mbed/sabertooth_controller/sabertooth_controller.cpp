@@ -2,13 +2,13 @@
 #include "mbed.h"
 
 SaberToothController::SaberToothController()
-        : sabertooth(RawSerial(p13, NC, 9600)), left_output(0), right_output(0)
+        : sabertooth(p13, NC, 9600), left_output(0), right_output(0)
 {
   stopMotors();
 }
 
 SaberToothController::SaberToothController(PinName tx_pin)
-        : sabertooth(RawSerial(tx_pin, NC, 9600)), left_output(0), right_output(0)
+        : sabertooth(tx_pin, NC, 9600), left_output(0), right_output(0)
 {
   stopMotors();
 }
