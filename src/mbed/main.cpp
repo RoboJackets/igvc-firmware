@@ -83,7 +83,7 @@ int main()
   pc.printf("Connecting...\r\n");
   EthernetInterface net;
 
-  if (int ret = net.set_network(G_MBED_IP, G_NETMASK, G_COMPUTER_IP); ret != 0)
+  if (int ret = net.set_network(MBED_IP, NETMASK, COMPUTER_IP); ret != 0)
   {
     pc.printf("Error performing set_network(). Error code: %i\r\n", ret);
     return 1;
@@ -106,7 +106,7 @@ int main()
     return 1;
   }
 
-  if (int ret = server_socket.bind(G_MBED_IP, G_SERVER_PORT); ret != 0)
+  if (int ret = server_socket.bind(MBED_IP, SERVER_PORT); ret != 0)
   {
     pc.printf("Error binding TCPSocket. Error code: %i\r\n", ret);
     return 1;
@@ -141,7 +141,7 @@ int main()
     while (true)
     {
       /* read data into the buffer. This call blocks until data is read */
-      char buffer[G_BUFFER_SIZE];
+      char buffer[BUFFER_SIZE];
       int n = client->recv(buffer, sizeof(buffer) - 1);
 
       /*
@@ -151,7 +151,7 @@ int main()
       */
       if (n < 0)
       {
-        if (G_DEBUG)
+        if (DEBUG)
         {
           printf("Received empty buffer\n");
         }
@@ -163,7 +163,7 @@ int main()
         pc.printf("Client Closed Connection\n");
         break;
       }
-      if (G_DEBUG)
+      if (DEBUG)
       {
         printf("Received Request of size: %d\n", n);
       }
@@ -276,7 +276,7 @@ bool sendResponse(TCPSocket &client)
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
   response_length = ostream.bytes_written;
 
-  if (G_DEBUG)
+  if (DEBUG)
   {
     printf("Sending message of length: %zu\n", response_length);
   }
@@ -348,8 +348,8 @@ void pid()
   g_last_loop_time = g_timer.read_ms();
 
   // 2: Convert encoder values into velocity
-  g_actual_speed_l = (G_METERS_PER_TICK * encoders.getLeftTicks()) / g_d_t_sec;
-  g_actual_speed_r = (G_METERS_PER_TICK * encoders.getRightTicks()) / g_d_t_sec;
+  g_actual_speed_l = (METERS_PER_TICK * encoders.getLeftTicks()) / g_d_t_sec;
+  g_actual_speed_r = (METERS_PER_TICK * encoders.getRightTicks()) / g_d_t_sec;
 
   // 3: Calculate error
   g_error_l = g_desired_speed_l - g_actual_speed_l;
