@@ -9,7 +9,7 @@
 #include "igvc.pb.h"
 #include "encoder_pair/encoder_pair.h"
 #include "sabertooth_controller/sabertooth_controller.h"
-#include "constants.h"
+#include "utils.h"
 
 /* hardware definitions */
 Timer g_timer;
@@ -41,27 +41,9 @@ float g_actual_speed_last_r = 0;
 float g_low_passed_pv_l = 0;
 float g_low_passed_pv_r = 0;
 
-/* desired motor speed (as specified by the client) */
-float g_desired_speed_l = 0;
-float g_desired_speed_r = 0;
-
-/* actual motor speeds */
-float g_actual_speed_l = 0;
-float g_actual_speed_r = 0;
-
-/* PID constants */
-float g_p_l = 0;
-float g_d_l = 0;
-float g_p_r = 0;
-float g_d_r = 0;
-float g_i_l = 0;
-float g_i_r = 0;
-float g_kv_l = 0;
-float g_kv_r = 0;
-
-/* motor outputs */
-uint32_t g_left_output;
-uint32_t g_right_output;
+/* Motor Data (see utils.h) */
+MotorCoeffs g_motor_coeffs;
+MotorPair g_motor_pair;
 
 /* e-stop logic */
 int g_estop = 1;
@@ -253,24 +235,24 @@ bool sendResponse(TCPSocket &client)
   response.has_left_output = true;
   response.has_right_output = true;
 
-  response.p_l = static_cast<float>(g_p_l);
-  response.p_r = static_cast<float>(g_p_r);
-  response.i_l = static_cast<float>(g_i_l);
-  response.i_r = static_cast<float>(g_i_r);
-  response.d_l = static_cast<float>(g_d_l);
-  response.d_r = static_cast<float>(g_d_r);
+  response.p_l = static_cast<float>(g_motor_coeffs.left_motor.k_p);
+  response.p_r = static_cast<float>(g_motor_coeffs.right_motor.k_p);
+  response.i_l = static_cast<float>(g_motor_coeffs.left_motor.k_i);
+  response.i_r = static_cast<float>(g_motor_coeffs.right_motor.k_i);
+  response.d_l = static_cast<float>(g_motor_coeffs.left_motor.k_d);
+  response.d_r = static_cast<float>(g_motor_coeffs.right_motor.k_d);
 
-  response.speed_l = static_cast<float>(g_actual_speed_l);
-  response.speed_r = static_cast<float>(g_actual_speed_r);
+  response.speed_l = static_cast<float>(g_motor_pair.left_motor.actual_speed);
+  response.speed_r = static_cast<float>(g_motor_pair.right_motor.actual_speed);
   response.dt_sec = static_cast<float>(g_d_t_sec);
   response.voltage = static_cast<float>(g_battery.read() * 3.3 * 521 / 51);
   response.estop = static_cast<bool>(g_estop);
 
-  response.kv_l = static_cast<float>(g_kv_l);
-  response.kv_r = static_cast<float>(g_kv_r);
+  response.kv_l = static_cast<float>(g_motor_coeffs.left_motor.k_kv);
+  response.kv_r = static_cast<float>(g_motor_coeffs.right_motor.k_kv);
 
-  response.left_output = g_left_output;
-  response.right_output = g_right_output;
+  response.left_output = g_motor_pair.left_motor.ctrl_output;
+  response.right_output = g_motor_pair.right_motor.ctrl_output;
 
   /* encode the message */
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
@@ -296,8 +278,8 @@ void triggerEstop()
 {
   // If get 5V, since inverted, meaning disabled on motors
   g_estop = 0;
-  g_desired_speed_l = 0;
-  g_desired_speed_r = 0;
+  g_motor_pair.left_motor.desired_speed = 0;
+  g_motor_pair.right_motor.desired_speed = 0;
   g_i_error_l = 0;
   g_i_error_r = 0;
   g_motor_controller.stopMotors();
@@ -313,20 +295,20 @@ void parseRequest(const RequestMessage &req)
   /* request contains PID values */
   if (req.has_p_l)
   {
-    g_p_l = req.p_l;
-    g_p_r = req.p_r;
-    g_d_l = req.d_l;
-    g_d_r = req.d_r;
-    g_i_l = req.i_l;
-    g_i_r = req.i_r;
-    g_kv_l = req.kv_l;
-    g_kv_r = req.kv_r;
+    g_motor_coeffs.left_motor.k_p = req.p_l;
+    g_motor_coeffs.right_motor.k_p = req.p_r;
+    g_motor_coeffs.left_motor.k_d = req.d_l;
+    g_motor_coeffs.right_motor.k_d = req.d_r;
+    g_motor_coeffs.left_motor.k_i = req.i_l;
+    g_motor_coeffs.right_motor.k_i = req.i_r;
+    g_motor_coeffs.left_motor.k_kv = req.kv_l;
+    g_motor_coeffs.right_motor.k_kv = req.kv_r;
   }
   /* request contains motor velocities */
   if (req.has_speed_l)
   {
-    g_desired_speed_l = req.speed_l;
-    g_desired_speed_r = req.speed_r;
+    g_motor_pair.left_motor.desired_speed = req.speed_l;
+    g_motor_pair.right_motor.desired_speed = req.speed_r;
   }
 }
 
@@ -348,18 +330,18 @@ void pid()
   g_last_loop_time = g_timer.read_ms();
 
   // 2: Convert encoder values into velocity
-  g_actual_speed_l = (METERS_PER_TICK * encoders.getLeftTicks()) / g_d_t_sec;
-  g_actual_speed_r = (METERS_PER_TICK * encoders.getRightTicks()) / g_d_t_sec;
+  g_motor_pair.left_motor.actual_speed = (METERS_PER_TICK * encoders.getLeftTicks()) / g_d_t_sec;
+  g_motor_pair.right_motor.actual_speed = (METERS_PER_TICK * encoders.getRightTicks()) / g_d_t_sec;
 
   // 3: Calculate error
-  g_error_l = g_desired_speed_l - g_actual_speed_l;
-  g_error_r = g_desired_speed_r - g_actual_speed_r;
+  g_error_l = g_motor_pair.left_motor.desired_speed - g_motor_pair.left_motor.actual_speed;
+  g_error_r = g_motor_pair.right_motor.desired_speed - g_motor_pair.right_motor.actual_speed;
 
   // 4: Calculate Derivative Error
   // TODO(oswinso): Make alpha a parameter
   float alpha = 0.75;
-  g_low_passed_pv_l = alpha * (g_actual_speed_last_l - g_actual_speed_l) / g_d_t_sec + (1 - alpha) * g_low_passed_pv_l;
-  g_low_passed_pv_r = alpha * (g_actual_speed_last_r - g_actual_speed_r) / g_d_t_sec + (1 - alpha) * g_low_passed_pv_r;
+  g_low_passed_pv_l = alpha * (g_actual_speed_last_l - g_motor_pair.left_motor.actual_speed) / g_d_t_sec + (1 - alpha) * g_low_passed_pv_l;
+  g_low_passed_pv_r = alpha * (g_actual_speed_last_r - g_motor_pair.right_motor.actual_speed) / g_d_t_sec + (1 - alpha) * g_low_passed_pv_r;
 
   g_d_error_l = g_low_passed_pv_l;
   g_d_error_r = g_low_passed_pv_r;
@@ -371,37 +353,37 @@ void pid()
 
   // 5b: Perform clamping
   // TODO(oswinso): make clamping a parameter
-  float i_clamp = 60 / g_i_l;
+  float i_clamp = 60 / g_motor_coeffs.left_motor.k_i;
   g_i_error_l = min(i_clamp, max(-i_clamp, g_i_error_l));
   g_i_error_r = min(i_clamp, max(-i_clamp, g_i_error_r));
 
   // 6: Sum P, I and D terms
-  float feedback_left = g_p_l * g_error_l + g_d_l * g_d_error_l + g_i_l * g_i_error_l;
-  float feedback_right = g_p_r * g_error_r + g_d_r * g_d_error_r + g_i_r * g_i_error_r;
+  float feedback_left = g_motor_coeffs.left_motor.k_p * g_error_l + g_motor_coeffs.left_motor.k_d * g_d_error_l + g_motor_coeffs.left_motor.k_i * g_i_error_l;
+  float feedback_right = g_motor_coeffs.right_motor.k_p * g_error_r + g_motor_coeffs.right_motor.k_d * g_d_error_r + g_motor_coeffs.right_motor.k_i * g_i_error_r;
 
   // 7: Calculate feedforward
-  float feedforward_left = g_kv_l * g_desired_speed_l;
-  float feedforward_right = g_kv_r * g_desired_speed_r;
+  float feedforward_left = g_motor_coeffs.left_motor.k_kv * g_motor_pair.left_motor.desired_speed;
+  float feedforward_right = g_motor_coeffs.right_motor.k_kv * g_motor_pair.right_motor.desired_speed;
 
   int left_signal = static_cast<int>(round(feedforward_left + feedback_left));
   int right_signal = static_cast<int>(round(feedforward_right + feedback_right));
 
   // 8: Deadband
-  if (abs(g_actual_speed_l) < 0.16 && abs(g_desired_speed_l) < 0.16)
+  if (abs(g_motor_pair.left_motor.actual_speed) < 0.16 && abs(g_motor_pair.left_motor.desired_speed) < 0.16)
   {
     left_signal = 0;
   }
 
-  if (abs(g_actual_speed_r) < 0.16 && abs(g_desired_speed_r) < 0.16)
+  if (abs(g_motor_pair.right_motor.actual_speed) < 0.16 && abs(g_motor_pair.right_motor.desired_speed) < 0.16)
   {
     right_signal = 0;
   }
 
   g_motor_controller.setSpeeds(right_signal, left_signal);
 
-  g_left_output = g_motor_controller.getLeftOutput();
-  g_right_output = g_motor_controller.getRightOutput();
+  g_motor_pair.left_motor.ctrl_output = g_motor_controller.getLeftOutput();
+  g_motor_pair.right_motor.ctrl_output = g_motor_controller.getRightOutput();
 
-  g_actual_speed_last_l = g_actual_speed_l;
-  g_actual_speed_last_r = g_actual_speed_r;
+  g_actual_speed_last_l = g_motor_pair.left_motor.actual_speed;
+  g_actual_speed_last_r = g_motor_pair.right_motor.actual_speed;
 }
