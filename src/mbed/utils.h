@@ -38,8 +38,8 @@ struct PIDCoeffs
 
 struct MotorCoeffs
 {
-  PIDCoeffs left_motor{};
-  PIDCoeffs right_motor{};
+  PIDCoeffs left{};
+  PIDCoeffs right{};
 };
 
 struct MotorStatus
@@ -49,10 +49,10 @@ struct MotorStatus
   uint32_t ctrl_output = 0;
 };
 
-struct MotorPair
+struct MotorStatusPair
 {
-  MotorStatus left_motor{};
-  MotorStatus right_motor{};
+  MotorStatus left{};
+  MotorStatus right{};
 };
 
 #endif //FIRMWARE_UTIL
