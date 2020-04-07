@@ -7,13 +7,11 @@
 #include <pb_decode.h>
 #include <pb_encode.h>
 #include "igvc.pb.h"
-#include "encoder_pair/encoder_pair.h"
 #include "sabertooth_controller/sabertooth_controller.h"
 #include "utils.h"
+#include "pid.h"
 
 /* hardware definitions */
-Timer g_timer;
-EncoderPair encoders;
 SaberToothController g_motor_controller;
 
 /* mbed pin definitions */
@@ -27,19 +25,9 @@ DigitalIn g_e_stop_status(p15);
 AnalogIn g_battery(p19);
 
 /* PID calculation values */
-long g_last_cmd_time = 0;
-int g_last_loop_time = 0;
-float g_error_l = 0;
-float g_error_r = 0;
-float g_d_error_l = 0;
-float g_d_error_r = 0;
 float g_i_error_l = 0;
 float g_i_error_r = 0;
 float g_d_t_sec = 0;
-float g_actual_speed_last_l = 0;
-float g_actual_speed_last_r = 0;
-float g_low_passed_pv_l = 0;
-float g_low_passed_pv_r = 0;
 
 /* Motor Data (see utils.h) */
 MotorCoeffs g_motor_coeffs;
@@ -51,18 +39,21 @@ int g_estop = 1;
 /* function prototypes */
 void parseRequest(const RequestMessage &req);
 bool sendResponse(TCPSocket &client);
-void pid();
 void triggerEstop();
+
+/* PID Control Thread Variables */
+Thread g_control_thread;
+ControlVars pid_in_out{&g_motor_controller, &g_d_t_sec, &g_i_error_l, &g_i_error_r, &g_motor_coeffs, &g_motor_pair};
 
 int main()
 {
-  //    /* Read PCON register */
-  //  printf("PCON: 0x%x\n", *((unsigned int *)0x400FC180));
-  //  *(unsigned int *)0x400fc180 |= 0xf;
+  g_control_thread.set_priority(osPriorityHigh);
+  g_control_thread.start(callback(pid_thread, &pid_in_out));
 
-  Serial pc(USBTX, USBRX);
-  /* Open the server (mbed) via the EthernetInterface class */
+  Serial pc(USBTX, USBRX); // For debugging
   pc.printf("Connecting...\r\n");
+
+  /* Open the server (mbed) via the EthernetInterface class */
   EthernetInterface net;
 
   if (int ret = net.set_network(MBED_IP, NETMASK, COMPUTER_IP); ret != 0)
@@ -79,8 +70,7 @@ int main()
   const char *ip = net.get_ip_address();
   pc.printf("MBED's IP address is: %s\n", ip ? ip : "No IP");
 
-  /* Instantiate a TCP Socket to function as the server and bind it to the
-   * specified port */
+  /* Instantiate a TCP Socket to function as the server and bind it to the specified port */
   TCPSocket server_socket;
   if (int ret = server_socket.open(&net); ret != 0)
   {
@@ -99,9 +89,6 @@ int main()
     pc.printf("Error listening. Error code: %i\r\n", ret);
     return 1;
   }
-
-  g_timer.reset();
-  g_timer.start();
 
   /* Instantiage a TCP socket to serve as the client */
   TCPSocket *client = nullptr;
@@ -170,14 +157,7 @@ int main()
 
       parseRequest(request);
 
-      /* reset the timer */
-      if (g_timer.read_ms() > pow(2, 20))
-      {
-        g_timer.reset();
-        g_last_cmd_time = 0;
-      }
-
-      /* e-stop logic */
+      /* estop logic */
       if (g_e_stop_status.read() == 0)
       {
         triggerEstop();
@@ -187,9 +167,6 @@ int main()
         g_estop = 1;
         g_safety_light_enable = 0;
       }
-
-      /* update motor velocities with PID */
-      pid();
 
       if (!sendResponse(*client))
       {
@@ -310,80 +287,4 @@ void parseRequest(const RequestMessage &req)
     g_motor_pair.left.desired_speed = req.speed_l;
     g_motor_pair.right.desired_speed = req.speed_r;
   }
-}
-
-// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation but with
-// e(t) on velocity, not position Changes to before 1: Derivative on PV 2:
-// Corrected integral 3: Low pass on Derivative 4: Clamping on Integral 5: Feed
-// forward
-void pid()
-{
-  // 1: Calculate dt
-  g_d_t_sec = static_cast<float>(g_timer.read_ms() - g_last_loop_time) / 1000.0;
-
-  if (g_timer.read() >= 1700)
-  {
-    g_timer.reset();
-    g_last_loop_time = 0;
-  }
-
-  g_last_loop_time = g_timer.read_ms();
-
-  // 2: Convert encoder values into velocity
-  g_motor_pair.left.actual_speed = (METERS_PER_TICK * encoders.getLeftTicks()) / g_d_t_sec;
-  g_motor_pair.right.actual_speed = (METERS_PER_TICK * encoders.getRightTicks()) / g_d_t_sec;
-
-  // 3: Calculate error
-  g_error_l = g_motor_pair.left.desired_speed - g_motor_pair.left.actual_speed;
-  g_error_r = g_motor_pair.right.desired_speed - g_motor_pair.right.actual_speed;
-
-  // 4: Calculate Derivative Error
-  // TODO(oswinso): Make alpha a parameter
-  float alpha = 0.75;
-  g_low_passed_pv_l = alpha * (g_actual_speed_last_l - g_motor_pair.left.actual_speed) / g_d_t_sec + (1 - alpha) * g_low_passed_pv_l;
-  g_low_passed_pv_r = alpha * (g_actual_speed_last_r - g_motor_pair.right.actual_speed) / g_d_t_sec + (1 - alpha) * g_low_passed_pv_r;
-
-  g_d_error_l = g_low_passed_pv_l;
-  g_d_error_r = g_low_passed_pv_r;
-
-  // 5: Calculate Integral Error
-  // 5a: Calculate Error
-  g_i_error_l += g_error_l * g_d_t_sec;
-  g_i_error_r += g_error_r * g_d_t_sec;
-
-  // 5b: Perform clamping
-  // TODO(oswinso): make clamping a parameter
-  float i_clamp = 60 / g_motor_coeffs.left.k_i;
-  g_i_error_l = min(i_clamp, max(-i_clamp, g_i_error_l));
-  g_i_error_r = min(i_clamp, max(-i_clamp, g_i_error_r));
-
-  // 6: Sum P, I and D terms
-  float feedback_left = g_motor_coeffs.left.k_p * g_error_l + g_motor_coeffs.left.k_d * g_d_error_l + g_motor_coeffs.left.k_i * g_i_error_l;
-  float feedback_right = g_motor_coeffs.right.k_p * g_error_r + g_motor_coeffs.right.k_d * g_d_error_r + g_motor_coeffs.right.k_i * g_i_error_r;
-
-  // 7: Calculate feedforward
-  float feedforward_left = g_motor_coeffs.left.k_kv * g_motor_pair.left.desired_speed;
-  float feedforward_right = g_motor_coeffs.right.k_kv * g_motor_pair.right.desired_speed;
-
-  int left_signal = static_cast<int>(round(feedforward_left + feedback_left));
-  int right_signal = static_cast<int>(round(feedforward_right + feedback_right));
-
-  // 8: Deadband
-  if (abs(g_motor_pair.left.actual_speed) < 0.16 && abs(g_motor_pair.left.desired_speed) < 0.16)
-  {
-    left_signal = 0;
-  }
-
-  if (abs(g_motor_pair.right.actual_speed) < 0.16 && abs(g_motor_pair.right.desired_speed) < 0.16)
-  {
-    right_signal = 0;
-  }
-
-  g_motor_controller.setSpeeds(right_signal, left_signal);
-
-  g_motor_pair.left.ctrl_output = g_motor_controller.getLeftOutput();
-  g_motor_pair.right.ctrl_output = g_motor_controller.getRightOutput();
-
-  g_actual_speed_last_l = g_motor_pair.left.actual_speed;
-  g_actual_speed_last_r = g_motor_pair.right.actual_speed;
 }
