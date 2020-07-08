@@ -1,10 +1,9 @@
 #include "pid.h"
 
-Mutex g_pid_control_lock;
 
 void pid_thread(void const *args)
 {
-  auto *in_out = (ControlVars*) args;
+  auto *in_out = (PIDArgs*) args;
 
   Timer timer;
   EncoderPair encoders;
@@ -29,14 +28,15 @@ void pid_thread(void const *args)
   while (true)
   {
     // Read input values
-    g_pid_control_lock.lock();
+    g_pid_lock.lock();
     coeffs = *in_out->motor_coeffs;
     motors = *in_out->motor_pair;
-    g_pid_control_lock.unlock();
+    g_pid_lock.unlock();
 
     // 1: Calculate dt
     d_t = static_cast<float>(timer.read_ms() - last_loop_time) / 1000.0;
 
+    // to prevent timer from overflowing and causing calculation errors
     if (timer.read() >= 1700)
     {
       timer.reset();
@@ -96,7 +96,7 @@ void pid_thread(void const *args)
     actual_speed_last_r = motors.right.actual_speed;
 
     // Write output values
-    g_pid_control_lock.lock();
+    g_pid_lock.lock();
     (*in_out->motor_controller).setSpeeds(right_signal, left_signal);
     motors.left.ctrl_output = (*in_out->motor_controller).getLeftOutput();
     motors.right.ctrl_output = (*in_out->motor_controller).getRightOutput();
@@ -104,6 +104,6 @@ void pid_thread(void const *args)
     *in_out->i_error_l = i_err_l;
     *in_out->i_error_r = i_err_r;
     *in_out->motor_pair = motors;
-    g_pid_control_lock.unlock();
+    g_pid_lock.unlock();
   }
 }

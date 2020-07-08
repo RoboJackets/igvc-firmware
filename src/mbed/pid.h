@@ -8,9 +8,7 @@
 
 void pid_thread(void const *args);
 
-extern Mutex g_pid_control_lock;
-
-struct ControlVars
+struct PIDArgs
 {
   SaberToothController *motor_controller;
   float *d_t_sec;

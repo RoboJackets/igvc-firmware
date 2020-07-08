@@ -42,13 +42,14 @@ bool sendResponse(TCPSocket &client);
 void triggerEstop();
 
 /* PID Control Thread Variables */
+Mutex g_pid_lock;
 Thread g_control_thread;
-ControlVars pid_in_out{&g_motor_controller, &g_d_t_sec, &g_i_error_l, &g_i_error_r, &g_motor_coeffs, &g_motor_pair};
+PIDArgs g_pid_io{&g_motor_controller, &g_d_t_sec, &g_i_error_l, &g_i_error_r, &g_motor_coeffs, &g_motor_pair};
 
 int main()
 {
   g_control_thread.set_priority(osPriorityHigh);
-  g_control_thread.start(callback(pid_thread, &pid_in_out));
+  g_control_thread.start(callback(pid_thread, &g_pid_io));
 
   Serial pc(USBTX, USBRX); // For debugging
   pc.printf("Connecting...\r\n");
@@ -137,19 +138,13 @@ int main()
         printf("Received Request of size: %d\n", n);
       }
 
-
       /* protobuf message to hold request from client */
-      RequestMessage request = RequestMessage_init_zero;
-      bool istatus;
-
       /* Create a stream that reads from the buffer. */
+      RequestMessage request = RequestMessage_init_zero;
       pb_istream_t istream = pb_istream_from_buffer(reinterpret_cast<uint8_t *>(buffer), n);
 
-      /* decode the message */
-      istatus = pb_decode(&istream, RequestMessage_fields, &request);
-
       /* check for any errors.. */
-      if (!istatus)
+      if (!pb_decode(&istream, RequestMessage_fields, &request))
       {
         printf("Decoding failed: %s\n", PB_GET_ERROR(&istream));
         continue;
@@ -212,24 +207,24 @@ bool sendResponse(TCPSocket &client)
   response.has_left_output = true;
   response.has_right_output = true;
 
+  g_pid_lock.lock();
   response.p_l = static_cast<float>(g_motor_coeffs.left.k_p);
   response.p_r = static_cast<float>(g_motor_coeffs.right.k_p);
   response.i_l = static_cast<float>(g_motor_coeffs.left.k_i);
   response.i_r = static_cast<float>(g_motor_coeffs.right.k_i);
   response.d_l = static_cast<float>(g_motor_coeffs.left.k_d);
   response.d_r = static_cast<float>(g_motor_coeffs.right.k_d);
-
   response.speed_l = static_cast<float>(g_motor_pair.left.actual_speed);
   response.speed_r = static_cast<float>(g_motor_pair.right.actual_speed);
   response.dt_sec = static_cast<float>(g_d_t_sec);
-  response.voltage = static_cast<float>(g_battery.read() * 3.3 * 521 / 51);
-  response.estop = static_cast<bool>(g_estop);
-
   response.kv_l = static_cast<float>(g_motor_coeffs.left.k_kv);
   response.kv_r = static_cast<float>(g_motor_coeffs.right.k_kv);
-
   response.left_output = g_motor_pair.left.ctrl_output;
   response.right_output = g_motor_pair.right.ctrl_output;
+  g_pid_lock.unlock();
+
+  response.voltage = static_cast<float>(g_battery.read() * 3.3 * 521 / 51);
+  response.estop = static_cast<bool>(g_estop);
 
   /* encode the message */
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
@@ -255,12 +250,14 @@ void triggerEstop()
 {
   // If get 5V, since inverted, meaning disabled on motors
   g_estop = 0;
+  g_safety_light_enable = 1;
+  g_pid_lock.lock();
   g_motor_pair.left.desired_speed = 0;
   g_motor_pair.right.desired_speed = 0;
   g_i_error_l = 0;
   g_i_error_r = 0;
   g_motor_controller.stopMotors();
-  g_safety_light_enable = 1;
+  g_pid_lock.unlock();
 }
 
 /*
@@ -272,6 +269,7 @@ void parseRequest(const RequestMessage &req)
   /* request contains PID values */
   if (req.has_p_l)
   {
+    g_pid_lock.lock();
     g_motor_coeffs.left.k_p = req.p_l;
     g_motor_coeffs.right.k_p = req.p_r;
     g_motor_coeffs.left.k_d = req.d_l;
@@ -280,11 +278,14 @@ void parseRequest(const RequestMessage &req)
     g_motor_coeffs.right.k_i = req.i_r;
     g_motor_coeffs.left.k_kv = req.kv_l;
     g_motor_coeffs.right.k_kv = req.kv_r;
+    g_pid_lock.unlock();
   }
   /* request contains motor velocities */
   if (req.has_speed_l)
   {
+    g_pid_lock.lock();
     g_motor_pair.left.desired_speed = req.speed_l;
     g_motor_pair.right.desired_speed = req.speed_r;
+    g_pid_lock.unlock();
   }
 }
