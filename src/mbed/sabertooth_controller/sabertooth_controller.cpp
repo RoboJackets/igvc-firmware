@@ -1,36 +1,36 @@
 #include "sabertooth_controller.h"
 #include "mbed.h"
 
-SaberToothController::SaberToothController()
+SabertoothController::SabertoothController()
         : sabertooth(p13, NC, 9600), left_output(0), right_output(0)
 {
   stopMotors();
 }
 
-SaberToothController::SaberToothController(PinName tx_pin)
+SabertoothController::SabertoothController(PinName tx_pin)
         : sabertooth(tx_pin, NC, 9600), left_output(0), right_output(0)
 {
   stopMotors();
 }
 
-void SaberToothController::stopMotors()
+void SabertoothController::stopMotors()
 {
   sabertooth.putc(0);
   left_output = 0;
   right_output = 0;
 }
 
-uint32_t SaberToothController::getLeftOutput()
+uint32_t SabertoothController::getLeftOutput()
 {
   return static_cast<int>(left_output);
 }
 
-uint32_t SaberToothController::getRightOutput()
+uint32_t SabertoothController::getRightOutput()
 {
   return static_cast<int>(right_output);
 }
 
-void SaberToothController::setLeftMotor(int speed)
+void SabertoothController::setLeftMotor(int speed)
 {
   // Motor 2: Left (128-255 for valid motor values)
   // motor outputs are inverted due to how the motors are mounted
@@ -39,7 +39,7 @@ void SaberToothController::setLeftMotor(int speed)
   sabertooth.putc(left_output);
 }
 
-void SaberToothController::setRightMotor(int speed)
+void SabertoothController::setRightMotor(int speed)
 {
   // Motor 1: Right (1-127 for valid motor values)
   // motor outputs are inverted due to how the motors are mounted
@@ -48,7 +48,7 @@ void SaberToothController::setRightMotor(int speed)
   sabertooth.putc(right_output);
 }
 
-void SaberToothController::setSpeeds(int right_speed, int left_speed)
+void SabertoothController::setSpeeds(int right_speed, int left_speed)
 {
   setLeftMotor(left_speed);
   setRightMotor(right_speed);

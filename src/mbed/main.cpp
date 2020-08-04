@@ -12,7 +12,7 @@
 #include "pid.h"
 
 /* hardware definitions */
-SaberToothController g_motor_controller;
+SabertoothController g_motor_controller;
 
 /* mbed pin definitions */
 DigitalOut g_mbed_led1(LED1);

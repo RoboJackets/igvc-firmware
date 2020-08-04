@@ -6,11 +6,11 @@
 // Sabertooth 2x60
 // Motor 1: Right
 // Motor 2: Left
-class SaberToothController
+class SabertoothController
 {
   public:
-    SaberToothController();
-    explicit SaberToothController(PinName tx_pin);
+    SabertoothController();
+    explicit SabertoothController(PinName tx_pin);
     void stopMotors();
     uint32_t getLeftOutput();
     uint32_t getRightOutput();

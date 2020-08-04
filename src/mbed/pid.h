@@ -10,7 +10,7 @@ void pid_thread(void const *args);
 
 struct PIDArgs
 {
-  SaberToothController *motor_controller;
+  SabertoothController *motor_controller;
   float *d_t_sec;
   float *i_error_l;
   float *i_error_r;
