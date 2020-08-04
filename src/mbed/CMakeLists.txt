@@ -2188,6 +2188,7 @@ set(PROTO_FILES ${PROTO_GENERATED_SRCS} ${PROTO_HDRS})
 add_executable(igvc-firmware-mbed main.cpp ${PROTO_FILES}
         encoder_pair/encoder_pair.cpp
         sabertooth_controller/sabertooth_controller.cpp
+        pid.cpp
         )
 target_link_libraries(igvc-firmware-mbed mbed_lib)
 target_include_directories(igvc-firmware-mbed PRIVATE ${MBED_INCLUDE_DIRS})

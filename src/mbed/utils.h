@@ -8,7 +8,6 @@
  * For defining constants used by main.cpp
  * Do NOT use macros; instead define a constant here
  */
-
 constexpr bool DEBUG = false;
 
 /* ethernet setup variables */
@@ -54,5 +53,15 @@ struct MotorStatusPair
   MotorStatus left{};
   MotorStatus right{};
 };
+
+/**
+ * g_pid_lock controls...
+ *  - g_d_t_sec
+ *  - g_i_errorl/r
+ *  - g_motor_coeffs
+ *  - g_motor_pair
+ *  - g_motor_controller
+ */
+extern Mutex g_pid_lock;
 
 #endif //FIRMWARE_UTIL
