@@ -321,6 +321,10 @@ bool sendResponse(TCPSocket &client)
   response.left_output = g_left_output;
   response.right_output = g_right_output;
 
+  response.desired_speed_l = g_desired_speed_l;
+  response.desired_speed_r = g_desired_speed_r;
+  response.debug = "";
+
   /* encode the message */
   ostatus = pb_encode(&ostream, ResponseMessage_fields, &response);
   response_length = ostream.bytes_written;

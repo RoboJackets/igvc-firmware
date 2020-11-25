@@ -23,6 +23,11 @@ message ResponseMessage {
     // Should range from 0 - 255 (ie. uchar)
     optional uint32 left_output = 14;
     optional uint32 right_output = 15;
+
+    // Debug messages
+    optional float desired_speed_l = 16;
+    optional float desired_speed_r = 17;
+    optional string debug = 18;
 }
 
 /* RequestMessage filled out by ros node and sent to the mbed */
