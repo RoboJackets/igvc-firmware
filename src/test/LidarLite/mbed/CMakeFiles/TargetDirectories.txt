@@ -1,3 +1,0 @@
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/EthernetTest/EthernetTestServer/CMakeFiles/rebuild_cache.dir
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/EthernetTest/EthernetTestServer/CMakeFiles/edit_cache.dir
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/EthernetTest/EthernetTestServer/CMakeFiles/swervi_mbed.dir

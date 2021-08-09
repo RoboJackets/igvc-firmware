@@ -1,6 +1,6 @@
 /lib/
-**/lib/**
-**/CMakeFiles/**
+**/lib*
+**/CMakeFiles*
 /build/
 /OutputCMake/**
 !/OutputCMake/**/.gitkeep
