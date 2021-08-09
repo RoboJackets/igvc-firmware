@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+message ResponseMessage {
+    optional uint32 fibResponse = 1;
+}
+
+message RequestMessage {
+    optional uint32 fibRequest = 1;
+}
