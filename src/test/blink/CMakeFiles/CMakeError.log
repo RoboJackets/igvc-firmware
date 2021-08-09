@@ -1,0 +1,24 @@
+Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+Compiler: /opt/gcc-arm-none-eabi-8-2018-q4-major/bin/arm-none-eabi-gcc 
+Build flags: -Wall;-Wextra;-Wno-unused-parameter;-Wno-missing-field-initializers;-fmessage-length=0;-fno-exceptions;-ffunction-sections;-fdata-sections;-funsigned-char;-fomit-frame-pointer;-Os;-g;-DMBED_TRAP_ERRORS_ENABLED=1;-DMBED_MINIMAL_PRINTF;-mcpu=cortex-m3;-mthumb;-DMBED_ROM_START=0x0;-DMBED_ROM_SIZE=0x80000;-DMBED_RAM_START=0x10000000;-DMBED_RAM_SIZE=0x8000;-DMBED_RAM1_START=0x2007c000;-DMBED_RAM1_SIZE=0x8000
+Id flags:  
+
+The output was:
+1
+/opt/gcc-arm-none-eabi-8-2018-q4-major/bin/../lib/gcc/arm-none-eabi/8.2.1/../../../../arm-none-eabi/bin/ld: /opt/gcc-arm-none-eabi-8-2018-q4-major/bin/../lib/gcc/arm-none-eabi/8.2.1/../../../../arm-none-eabi/lib/thumb/v7-m/nofp/libg.a(lib_a-exit.o): in function `exit':
+exit.c:(.text.exit+0x16): undefined reference to `_exit'
+collect2: error: ld returned 1 exit status
+
+
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+Compiler: /opt/gcc-arm-none-eabi-8-2018-q4-major/bin/arm-none-eabi-g++ 
+Build flags: -Wall;-Wextra;-Wno-unused-parameter;-Wno-missing-field-initializers;-fmessage-length=0;-fno-exceptions;-ffunction-sections;-fdata-sections;-funsigned-char;-fomit-frame-pointer;-Os;-g;-DMBED_TRAP_ERRORS_ENABLED=1;-DMBED_MINIMAL_PRINTF;-mcpu=cortex-m3;-mthumb;-DMBED_ROM_START=0x0;-DMBED_ROM_SIZE=0x80000;-DMBED_RAM_START=0x10000000;-DMBED_RAM_SIZE=0x8000;-DMBED_RAM1_START=0x2007c000;-DMBED_RAM1_SIZE=0x8000;-Wvla;-fno-exceptions;-fno-rtti
+Id flags:  
+
+The output was:
+1
+/opt/gcc-arm-none-eabi-8-2018-q4-major/bin/../lib/gcc/arm-none-eabi/8.2.1/../../../../arm-none-eabi/bin/ld: /opt/gcc-arm-none-eabi-8-2018-q4-major/bin/../lib/gcc/arm-none-eabi/8.2.1/../../../../arm-none-eabi/lib/thumb/v7-m/nofp/libg.a(lib_a-exit.o): in function `exit':
+exit.c:(.text.exit+0x16): undefined reference to `_exit'
+collect2: error: ld returned 1 exit status
+
+
