@@ -1,0 +1,5 @@
+/lib/
+/build/
+/OutputCMake/**
+!/OutputCMake/**/
+!/OutputCMake/**/.gitkeep
