@@ -1,8 +1,0 @@
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/blink/CMakeFiles/rebuild_cache.dir
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/blink/CMakeFiles/edit_cache.dir
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/blink/CMakeFiles/flash-blink.dir
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/blink/CMakeFiles/blink.dir
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/blink/lib/mbed-cmake/mbed-src/CMakeFiles/rebuild_cache.dir
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/blink/lib/mbed-cmake/mbed-src/CMakeFiles/edit_cache.dir
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/blink/lib/mbed-cmake/mbed-src/CMakeFiles/mbed-os-static.dir
-/home/andrew/Programming/RoboNav/refactor_june2021/refactor5/src/test/blink/lib/mbed-cmake/mbed-src/CMakeFiles/mbed-linker-script.dir
