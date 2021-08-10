@@ -1,8 +1,19 @@
 # mbed-cmake requires at least CMake 3.12 
 cmake_minimum_required(VERSION 3.12)
 
+# Set BUILD_PROGRAM in the Command Line:
+#   cmake -D BUILD_PROGRAM="MAIN" -B OutputCMake/main/
+#   cmake -D BUILD_PROGRAM="TEST_BLINK" -B OutputCMake/test/blink/
+#   cmake -D BUILD_PROGRAM="TEST_ETHERNET_CLIENT" -B OutputCMake/test/EthernetTest/mbed/
+#   cmake -D BUILD_PROGRAM="TEST_ETHERNET_SERVER" -B OutputCMake/test/EthernetTest/computer/
+#   cmake -D BUILD_PROGRAM="TEST_LIDAR_LITE_MBED" -B OutputCMake/test/LidarLite/mbed/
+#   cmake -D BUILD_PROGRAM="TEST_LIDAR_LITE_COMP" -B OutputCMake/test/LidarLite/computer/
+#   cmake -D BUILD_PROGRAM="TEST_CAN" -B OutputCMake/test/CANTest/mbed/
+
+# You can also set BUILD_PROGRAM by uncommenting one of the following:
+
 # set(BUILD_PROGRAM MAIN)
-set(BUILD_PROGRAM TEST_BLINK)
+# set(BUILD_PROGRAM TEST_BLINK)
 # set(BUILD_PROGRAM TEST_ETHERNET_CLIENT)
 # set(BUILD_PROGRAM TEST_ETHERNET_SERVER)
 # set(BUILD_PROGRAM TEST_LIDAR_LITE_MBED)
@@ -25,6 +36,7 @@ elseif (${BUILD_PROGRAM} STREQUAL TEST_ETHERNET_CLIENT)
     set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/test/EthernetTest/EthernetTestClient)    
     set(PROGRAM_SRC ${SRC_DIR}/main.cpp
             ${SRC_DIR}/ParseProtobufMbed.cpp
+            ${SRC_DIR}/communication/EthernetSocket.cpp
             )
     set(PROTOS ${SRC_DIR}/count.proto)
     set(BUILD_PROTOBUF ON)
@@ -97,15 +109,18 @@ endif()
 
 project(swervi_mbed)
     
-if (${BUILD_PROTOBUF}) 
+# Boost libs
+# if (NOT ${BUILD_MBED} AND NOT boost_system_FOUND)
+if (NOT boost_system_FOUND)
+    # set(boost_system_FOUND TRUE)
+    find_package(Boost 1.76.0 REQUIRED COMPONENTS system)
+    include_directories(${Boost_INCLUDE_DIRS})
+    message("boost lib: ${Boost_LIBRARIES}")
+    message("boost inc: ${Boost_INCLUDE_DIR}")
+endif()
 
-    # Boost libs
-    if (NOT ${BUILD_MBED})
-        find_package(Boost 1.76.0 REQUIRED COMPONENTS system)
-        include_directories(${Boost_INCLUDE_DIRS})
-        message("boost lib: ${Boost_LIBRARIES}")
-        message("boost inc: ${Boost_INCLUDE_DIR}")
-    endif()
+if (${BUILD_PROTOBUF}) 
+    
     # NanoPB Config ~~~~~~~~~
     
     message(STATUS "Creating NanoPB target...")
