@@ -1,6 +1,3 @@
 [submodule "lib/mbed-cmake"]
 	path = lib/mbed-cmake
 	url = https://github.com/USCRPL/mbed-cmake.git
-[submodule "lib/nanopb"]
-	path = lib/nanopb
-	url = https://github.com/nanopb/nanopb.git
