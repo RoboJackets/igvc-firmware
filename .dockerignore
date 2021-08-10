@@ -1,14 +1,18 @@
-lib/
-**/lib*
-**/CMakeFiles*
-**/nanopb*
+lib/*
 build/*
 OutputCMake/*
 
-# Every folder marked with .gitkeep is NOT excluded.
-# The command
-# -- touch path/to/dir .gitkeep
-# adds a .gitkeep file. Then, do
-# -- git add -f *.gitkeep
-# to add all folders marked with .gitkeep.
-!/**/.gitkeep
+**/CMakeFiles*
+**/nanopb*
+
+# Whitelisting doesn't work the same in .dockerignore.
+# When updating folder stucture of OutputCMake, run:
+# $ find OutputCMake/ -name \*.gitkeep
+# Copy / Paste the result below, prefix with '!'
+!OutputCMake/main/.gitkeep
+!OutputCMake/test/EthernetTest/mbed/.gitkeep
+!OutputCMake/test/EthernetTest/computer/.gitkeep
+!OutputCMake/test/LidarLite/mbed/.gitkeep
+!OutputCMake/test/LidarLite/computer/.gitkeep
+!OutputCMake/test/blink/.gitkeep
+!OutputCMake/test/CANTest/mbed/.gitkeep
