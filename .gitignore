@@ -1,9 +1,10 @@
-lib/
-**/lib*
-**/CMakeFiles*
-**/nanopb*
+lib/*
 build/*
 OutputCMake/*
+
+**/lib/*
+**/CMakeFiles*
+**/nanopb*
 
 # Every folder marked with .gitkeep is NOT excluded.
 # The command
