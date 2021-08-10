@@ -8,6 +8,8 @@ OutputCMake/*
 **/nanopb*
 !lib/nanopb*
 
+wervi*
+
 # Every folder marked with .gitkeep is NOT excluded.
 # The command
 # $ touch path/to/dir .gitkeep
