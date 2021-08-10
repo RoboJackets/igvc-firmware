@@ -1,7 +1,14 @@
-/lib/
+lib/
 **/lib*
 **/CMakeFiles*
 **/nanopb*
-/build/
-/OutputCMake/**
-!/OutputCMake/**/.gitkeep
+build/*
+OutputCMake/*
+
+# Every folder marked with .gitkeep is NOT excluded.
+# The command
+# -- touch path/to/dir .gitkeep
+# adds a .gitkeep file. Then, do
+# -- git add -f *.gitkeep
+# to add all folders marked with .gitkeep.
+!/**/.gitkeep
