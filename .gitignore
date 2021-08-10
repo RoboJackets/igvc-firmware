@@ -4,4 +4,4 @@ lib/
 **/nanopb*
 build/
 OutputCMake/*
-!/**/.gitkeep
+!/OutputCMake/.gitkeep
