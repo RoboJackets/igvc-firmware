@@ -2,6 +2,6 @@ lib/
 **/lib*
 **/CMakeFiles*
 **/nanopb*
-build/
+build/*
 OutputCMake/*
-!/OutputCMake/**/.gitkeep
+!/**/.gitkeep
