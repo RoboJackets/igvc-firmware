@@ -5,6 +5,7 @@ OutputCMake/*
 # **/lib/*
 **/CMakeFiles*
 **/nanopb*
+!lib/nanopb*
 
 # Every folder marked with .gitkeep is NOT excluded.
 # The command
