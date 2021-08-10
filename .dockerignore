@@ -1,9 +1,9 @@
 lib/*
+
 build/*
 OutputCMake/*
 
 **/CMakeFiles*
-**/nanopb*
 
 # Whitelisting doesn't work the same in .dockerignore.
 # When updating folder stucture of OutputCMake, run:
@@ -16,3 +16,6 @@ OutputCMake/*
 !OutputCMake/test/LidarLite/computer/.gitkeep
 !OutputCMake/test/blink/.gitkeep
 !OutputCMake/test/CANTest/mbed/.gitkeep
+
+!/lib/mbed-cmake/
+!/lib/nanopb/

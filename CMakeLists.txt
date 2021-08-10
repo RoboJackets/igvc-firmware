@@ -68,6 +68,10 @@ if (${BUILD_MBED})
     set(LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
     set(MBED_CMAKE_SOURCE_DIR ${LIB_DIR}/mbed-cmake)
 
+    # install additional dependecies
+    execute_process(COMMAND python3 -m  pip install -r
+        ${MBED_CMAKE_SOURCE_DIR}/mbed-src/requirements.txt)
+
     # configure mbed library for LPC1768
     execute_process(COMMAND python3 ${MBED_CMAKE_SOURCE_DIR}/configure_for_target.py LPC1768)
 
