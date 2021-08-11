@@ -70,7 +70,6 @@ else()
     set(PROGRAM_SRC ${SRC_DIR}/main.cpp)
     set(BUILD_PROTOBUF OFF)
     set(BUILD_MBED ON)
-    
 endif()
 
 
