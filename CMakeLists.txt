@@ -9,6 +9,8 @@ cmake_minimum_required(VERSION 3.12)
 #   cmake -D BUILD_PROGRAM="TEST_LIDAR_LITE_MBED" -B OutputCMake/test/LidarLite/mbed/
 #   cmake -D BUILD_PROGRAM="TEST_LIDAR_LITE_COMP" -B OutputCMake/test/LidarLite/computer/
 #   cmake -D BUILD_PROGRAM="TEST_CAN" -B OutputCMake/test/CANTest/mbed/
+#   cmake -D BUILD_PROGRAM="TEST_SWERVE_DRIVE_MBED" -B OutputCMake/test/SwerveDriveModule/mbed/
+#   cmake -D BUILD_PROGRAM="TEST_SWERVE_DRIVE_COMP" -B OutputCMake/test/SwerveDriveModule/mbed/
 
 # You can also set BUILD_PROGRAM by uncommenting one of the following:
 
@@ -65,6 +67,20 @@ elseif (${BUILD_PROGRAM} STREQUAL TEST_CAN)
     set(PROGRAM_SRC ${SRC_DIR}/main.cpp)
     set(BUILD_PROTOBUF OFF)
     set(BUILD_MBED ON)
+elseif (${BUILD_PROGRAM} STREQUAL TEST_SWERVE_DRIVE_MBED)
+    set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/test/SwerveDriveModule/mbed)    
+    set(PROGRAM_SRC ${SRC_DIR}/main.cpp)
+    set(BUILD_PROTOBUF OFF)
+    set(BUILD_MBED ON)
+elseif (${BUILD_PROGRAM} STREQUAL TEST_SWERVE_DRIVE_COMP)
+    set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/test/SwerveDriveModule/computer)    
+    set(PROGRAM_SRC ${SRC_DIR}/main.cpp
+            ${SRC_DIR}/ParseProtobuf.cpp
+            ${SRC_DIR}/EthernetSocket.cpp
+            )
+    set(PROTOS ${SRC_DIR}/count.proto)
+    set(BUILD_PROTOBUF ON)
+    set(BUILD_MBED OFF)
 else() 
     set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/test/blink)    
     set(PROGRAM_SRC ${SRC_DIR}/main.cpp)
@@ -160,6 +176,8 @@ if (${BUILD_MBED})
         add_mbed_executable(test_lidar_lite_mbed ${PROGRAM_SRC} ${PROTO_FILES})
     elseif (${BUILD_PROGRAM} STREQUAL TEST_CAN)
         add_mbed_executable(test_can ${PROGRAM_SRC} ${PROTO_FILES})
+    elseif (${BUILD_PROGRAM} STREQUAL TEST_SWERVE_DRIVE_MBED)
+        add_mbed_executable(test_swerve_drive_mbed ${PROGRAM_SRC} ${PROTO_FILES})
     endif()
 
     # build report
@@ -185,6 +203,11 @@ else()
 
         # -lnosys: used by ARM mbed specifically
         target_link_libraries(test_lidar_lite_comp -lstdc++ -lsupc++ -lm -lc -lgcc ${Boost_LIBRARIES})
+    elseif (${BUILD_PROGRAM} STREQUAL TEST_SWERVE_DRIVE_COMP)
+        add_executable(test_swerve_drive_comp ${PROGRAM_SRC} ${PROTO_FILES}) 
+
+        # -lnosys: used by ARM mbed specifically
+        target_link_libraries(test_swerve_drive_comp -lstdc++ -lsupc++ -lm -lc -lgcc ${Boost_LIBRARIES})
     endif()
     
     
