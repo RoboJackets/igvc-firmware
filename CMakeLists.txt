@@ -1,5 +1,7 @@
 # mbed-cmake requires at least CMake 3.12 
 cmake_minimum_required(VERSION 3.12)
+# set(CMAKE_CXX_FLAGS "-g")
+# set(CMAKE_BUILD_TYPE Debug)
 
 # Set BUILD_PROGRAM in the Command Line:
 #   cmake -D BUILD_PROGRAM="MAIN" -B OutputCMake/main/
@@ -10,7 +12,7 @@ cmake_minimum_required(VERSION 3.12)
 #   cmake -D BUILD_PROGRAM="TEST_LIDAR_LITE_COMP" -B OutputCMake/test/LidarLite/computer/
 #   cmake -D BUILD_PROGRAM="TEST_CAN" -B OutputCMake/test/CANTest/mbed/
 #   cmake -D BUILD_PROGRAM="TEST_SWERVE_DRIVE_MBED" -B OutputCMake/test/SwerveDriveModule/mbed/
-#   cmake -D BUILD_PROGRAM="TEST_SWERVE_DRIVE_COMP" -B OutputCMake/test/SwerveDriveModule/mbed/
+#   cmake -D BUILD_PROGRAM="TEST_SWERVE_DRIVE_COMP" -B OutputCMake/test/SwerveDriveModule/comp/
 
 # You can also set BUILD_PROGRAM by uncommenting one of the following:
 
@@ -75,10 +77,10 @@ elseif (${BUILD_PROGRAM} STREQUAL TEST_SWERVE_DRIVE_MBED)
 elseif (${BUILD_PROGRAM} STREQUAL TEST_SWERVE_DRIVE_COMP)
     set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/test/SwerveDriveModule/computer)    
     set(PROGRAM_SRC ${SRC_DIR}/main.cpp
-            ${SRC_DIR}/ParseProtobuf.cpp
-            ${SRC_DIR}/EthernetSocket.cpp
+            ${SRC_DIR}/communication/ParseProtobuf.cpp
+            ${SRC_DIR}/communication/EthernetSocket.cpp
             )
-    set(PROTOS ${SRC_DIR}/count.proto)
+    set(PROTOS ${SRC_DIR}/communication/swerve_commands.proto)
     set(BUILD_PROTOBUF ON)
     set(BUILD_MBED OFF)
 else() 
