@@ -40,7 +40,7 @@ elseif (${BUILD_PROGRAM} STREQUAL TEST_ETHERNET_CLIENT)
     set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/test/EthernetTest/EthernetTestClient)    
     set(PROGRAM_SRC ${SRC_DIR}/main.cpp
             ${SRC_DIR}/ParseProtobufMbed.cpp
-            ${SRC_DIR}/communication/EthernetSocket.cpp
+            # ${SRC_DIR}/communication/EthernetSocket.cpp
             )
     set(PROTOS ${SRC_DIR}/count.proto)
     set(BUILD_PROTOBUF ON)
@@ -71,8 +71,11 @@ elseif (${BUILD_PROGRAM} STREQUAL TEST_CAN)
     set(BUILD_MBED ON)
 elseif (${BUILD_PROGRAM} STREQUAL TEST_SWERVE_DRIVE_MBED)
     set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/test/SwerveDriveModule/mbed)    
-    set(PROGRAM_SRC ${SRC_DIR}/main.cpp)
-    set(BUILD_PROTOBUF OFF)
+    set(PROGRAM_SRC ${SRC_DIR}/main.cpp
+            ${SRC_DIR}/communication/ParseProtobufMbed.cpp
+            )
+    set(PROTOS ${SRC_DIR}/communication/swerve_commands.proto)
+    set(BUILD_PROTOBUF ON)
     set(BUILD_MBED ON)
 elseif (${BUILD_PROGRAM} STREQUAL TEST_SWERVE_DRIVE_COMP)
     set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/test/SwerveDriveModule/computer)    

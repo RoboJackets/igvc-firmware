@@ -19,7 +19,7 @@ ParseProtobuf eth;
 int main() {
 
     ParseProtobuf eth = ParseProtobuf(); 
-    // eth.connect();
+    eth.connect();
     
     help_message();
 

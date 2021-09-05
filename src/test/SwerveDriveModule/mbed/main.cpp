@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "can_helper.h"
+#include "communication/ParseProtobufMbed.h"
  
 Ticker ticker;
 Ticker printTimer;
@@ -21,11 +22,68 @@ bool printVal = false;
 int main();
 void send();
 void togglePrint();
+void handle_ethernet();
+void handle_can();
+
+
+ParseProtobufMbed eth;
+
+Mutex *request_message_mutex;
+Thread *ethernet_thread;
+Thread *can_thread;
 
 int main() {
+
     printf("main()\n");
-    ticker.attach(&send, 1.0);
+
+    // Print timer
     printTimer.attach(&togglePrint, 1.0);
+
+    // Etherent Connection
+    eth = ParseProtobufMbed();
+    eth.connect();
+    ethernet_thread->start(handle_ethernet);
+    //can_thread->start(handle_can);
+    
+    while (true){ 
+        if (printVal) {
+
+            request_message_mutex->lock();
+            RequestMessage message = eth.getRequestMessage();
+            
+            printf(
+                "axis id: %x, can id: %x, cmd id: %x, ",
+                message.axis_id,
+                message.can_id,
+                message.cmd_id
+            );
+
+            if (message.has_unsigned_int_request ||
+                    message.has_signed_int_request) {
+                printf("data: %d\n", message.unsigned_int_request);
+            } else if (message.has_float_request) {
+                printf("requesting float!\n");
+            }
+            request_message_mutex->unlock();
+
+            printVal = false;
+        }
+
+    }
+    
+}
+
+void handle_ethernet() {
+    while (true){
+        eth.sendMbedMessage();
+        eth.recieveComputerMessage(request_message_mutex);
+    }
+    
+}
+
+void handle_can() {
+    // Ticker
+    ticker.attach(&send, 1.0);
 
     // cmd_id = 0x17 works
     // cmd_id = 0x0F works
@@ -86,9 +144,6 @@ int main() {
             }
         } 
     }
-
-        // ThisThread::sleep_for(20ms);
-    // }
 }
 
 void send() {
