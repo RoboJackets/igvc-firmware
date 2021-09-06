@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <iostream>
 #include <string.h>
+#include <thread>
 #include "communication/ParseProtobuf.h"
+#include "pthread.h"
 
 #define MAX_ODRIVE 1
 #define MAX_AXIS 1
@@ -16,13 +18,73 @@ void print_send_data(int can_id, int axis_id, int cmd_id, float val);
 
 ParseProtobuf eth;
 
+pthread_mutex_t recv_message_mutex;
+pthread_mutex_t send_message_ready_mutex;
+pthread_mutex_t send_message_mutex;
+pthread_t ethernet_thread;
+pthread_t input_thread;
+
+RequestMessage message;
+bool send_message_ready = false;
+
+void *handle_input(void *vargp);
+void *handle_ethernet(void *vargp);
+
 int main() {
+    
+    help_message();
+    
+    pthread_mutex_init(&send_message_mutex, NULL);
+    pthread_mutex_init(&send_message_ready_mutex, NULL);
+    pthread_mutex_init(&recv_message_mutex, NULL);
+
+    pthread_create(&ethernet_thread, NULL, handle_ethernet, NULL);
+    pthread_create(&input_thread, NULL, handle_input, NULL);
+
+    while (true) {
+        
+    }
+
+    return 0 ;
+}
+
+void *handle_ethernet(void *vargp) {
 
     ParseProtobuf eth = ParseProtobuf(); 
     eth.connect();
-    
-    help_message();
 
+    while (true) {
+
+        // pthread_mutex_lock(&recv_message_mutex);
+        // eth.recieve_message();
+        // pthread_mutex_unlock(&recv_message_mutex);
+
+        pthread_mutex_lock(&send_message_mutex);
+        pthread_mutex_lock(&send_message_ready_mutex);
+
+        // if (eth.get_request_message_ready() == true) {
+        if (send_message_ready == true) {
+            printf("Success!\n");
+            // message ready, send it!
+            eth.send_message(&message);
+            // reset the flag
+            // eth.set_request_message_ready(false);
+            send_message_ready = false;
+        } 
+        else {
+            // message not ready, send ACK
+            eth.populate_ack();
+            eth.send_message();
+        }
+
+        pthread_mutex_unlock(&send_message_ready_mutex);
+        pthread_mutex_unlock(&send_message_mutex);
+
+        std::this_thread::sleep_for(20ms);
+    }
+}
+
+void *handle_input(void *vargp) {
     char input[30];
     char delim[] = " ";
     char *ptr;
@@ -88,8 +150,32 @@ int main() {
 
             if (val != -1) {
                 print_send_data(can_id, axis_id, 0x07, val);
-                // eth.send_message(can_id, axis_id, 
+
+                pthread_mutex_lock(&send_message_mutex);
+                pthread_mutex_lock(&send_message_ready_mutex);
+                // eth.populate_message(&message, can_id, axis_id, 
                 //     0x07, static_cast<uint32_t>(val));
+                //     send_message_ready = true;
+                message = RequestMessage_init_zero;
+
+                // Fill out request message
+                message.has_ack = false;
+                message.has_axis_id = true;
+                message.has_can_id = true;
+                message.has_cmd_id = true;
+                message.has_float_request = false;
+                message.has_signed_int_request = false;
+                message.has_unsigned_int_request = true;
+
+                message.axis_id = static_cast<uint32_t>(axis_id);
+                message.can_id = static_cast<uint32_t>(can_id);
+                message.cmd_id = static_cast<uint32_t>(0x07);
+                message.unsigned_int_request = static_cast<uint32_t>(val);
+
+                send_message_ready = true;
+
+                pthread_mutex_unlock(&send_message_ready_mutex);
+                pthread_mutex_unlock(&send_message_mutex);
             }
            
         } else if (strcmp(cmd, "control_mode") == 0 && num_args == 2) {
@@ -106,8 +192,13 @@ int main() {
 
             if (val != -1) {
                 print_send_data(can_id, axis_id, 0x0B, val);
-                // eth.send_message(can_id, axis_id, 
-                //     0x07, static_cast<uint32_t>(val));
+
+                pthread_mutex_lock(&send_message_mutex);
+                pthread_mutex_lock(&send_message_ready_mutex);
+                eth.populate_message(&message, can_id, axis_id, 
+                    0x07, static_cast<uint32_t>(val));
+                pthread_mutex_unlock(&send_message_ready_mutex);
+                pthread_mutex_unlock(&send_message_mutex);
             }
            
         } else if (strcmp(cmd, "pos") == 0 && num_args == 2) {
@@ -116,9 +207,14 @@ int main() {
             sscanf(cmd_value, "%f", &val);
 
             print_send_data(can_id, axis_id, 0x0C, val);
-            // eth.send_message(can_id, axis_id, 
-            //     0x07, static_cast<uint32_t>(val));
-            
+
+            pthread_mutex_lock(&send_message_mutex);
+            pthread_mutex_lock(&send_message_ready_mutex);
+            eth.populate_message(can_id, axis_id, 
+                0x07, static_cast<float>(val));
+            pthread_mutex_unlock(&send_message_ready_mutex);
+            pthread_mutex_unlock(&send_message_mutex);
+
            
         } else if (strcmp(cmd, "vel") == 0 && num_args == 2) {
             
@@ -126,9 +222,13 @@ int main() {
             sscanf(cmd_value, "%f", &val);
 
             print_send_data(can_id, axis_id, 0x0D, val);
-            // eth.send_message(can_id, axis_id, 
-            //     0x07, static_cast<uint32_t>(val));
-            
+
+            pthread_mutex_lock(&send_message_mutex);
+            pthread_mutex_lock(&send_message_ready_mutex);
+            eth.populate_message(can_id, axis_id, 
+                0x07, static_cast<float>(val));
+            pthread_mutex_unlock(&send_message_ready_mutex);
+            pthread_mutex_unlock(&send_message_mutex);
            
         } else if (strcmp(cmd, "command") == 0 && num_args == 1) {
             char buffer[30];
@@ -151,21 +251,25 @@ int main() {
             printf("int, uint, float, or none? ");
             cin.getline(buffer, 30);
 
+            pthread_mutex_lock(&send_message_mutex);
+            pthread_mutex_lock(&send_message_ready_mutex);
             if (strcmp(cmd_value, "int") == 0) {
-                // eth.send_message(temp_can_id, temp_axis_id, 
-                // temp_cmd_id, static_cast<uint32_t>(val));
+                eth.populate_message(&message, temp_can_id, temp_axis_id, 
+                    temp_cmd_id, static_cast<uint32_t>(data));
             } else if (strcmp(cmd_value, "uint") == 0) {
-                // eth.send_message(temp_can_id, temp_axis_id, 
-                // temp_cmd_id, static_cast<uint32_t>(val));
+                eth.populate_message(&message, temp_can_id, temp_axis_id, 
+                    temp_cmd_id, static_cast<uint32_t>(data));
             } else if (strcmp(cmd_value, "float") == 0) {
-                // eth.send_message(temp_can_id, temp_axis_id, 
-                //     temp_cmd_id, static_cast<float>(val));
+                eth.populate_message(&message, temp_can_id, temp_axis_id, 
+                    temp_cmd_id, static_cast<float>(data));
             } else if (strcmp(cmd_value, "none") == 0) {
-                // eth.send_message(temp_can_id, temp_axis_id, 
-                // temp_cmd_id);
+                eth.populate_message(&message, temp_can_id, temp_axis_id, 
+                    temp_cmd_id);
             } else {
                 error_message();
             }
+            pthread_mutex_unlock(&send_message_ready_mutex);
+            pthread_mutex_unlock(&send_message_mutex);
 
             print_send_data(temp_can_id, temp_axis_id, 
                 temp_cmd_id, 5);
@@ -177,8 +281,7 @@ int main() {
         }
 
     }
-
-    return 0 ;
+    
 }
 
 void print_send_data(int can_id, int axis_id, int cmd_id) {

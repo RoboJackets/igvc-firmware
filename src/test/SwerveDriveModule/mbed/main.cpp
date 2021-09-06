@@ -1,5 +1,6 @@
 #include "mbed.h"
 #include "rtos.h"
+
 #include <chrono>
 
 #include "can_helper.h"
@@ -21,34 +22,67 @@ bool printVal = false;
 
 int main();
 void send();
-void togglePrint();
+// void togglePrint();
 void handle_ethernet();
 void handle_can();
-
+void handle_print();
 
 ParseProtobufMbed eth;
 
-Mutex *request_message_mutex;
-Thread *ethernet_thread;
-Thread *can_thread;
+Mutex request_message_mutex;
+Mutex request_message_ready_mutex;
+
+Thread ethernet_thread;
+Thread can_thread;
+Thread print_thread;
+
+bool first = true;
 
 int main() {
 
+    led1 = 1;
+    led2 = 1;
+
     printf("main()\n");
 
-    // Print timer
-    printTimer.attach(&togglePrint, 1.0);
+    // Print timervoid togglePrint() {
+    // printVal = true;
 
-    // Etherent Connection
-    eth = ParseProtobufMbed();
     eth.connect();
-    ethernet_thread->start(handle_ethernet);
+
+    ethernet_thread.start(handle_ethernet);
+    // print_thread.start(handle_print);
     //can_thread->start(handle_can);
     
-    while (true){ 
-        if (printVal) {
+    while (true) {}
+}
 
-            request_message_mutex->lock();
+void handle_print() {
+
+    int printCount1 = 0;
+    int printCount2 = 0;
+    int count = 0;
+
+    while (true){ 
+
+        // Print out thread information
+        if (first) {
+            printf("Ethernet Thread: %x\n", ethernet_thread.get_id());
+            printf("Print Thread: %x\n", print_thread.get_id());
+            first = false;
+        }
+
+        request_message_ready_mutex.lock();
+
+        if (eth.get_request_message_ready() == true) {
+            eth.set_request_message_ready(false);
+            request_message_ready_mutex.unlock();
+
+            led1 = 1;
+
+            printf("\n");
+
+            request_message_mutex.lock();
             RequestMessage message = eth.getRequestMessage();
             
             printf(
@@ -64,21 +98,44 @@ int main() {
             } else if (message.has_float_request) {
                 printf("requesting float!\n");
             }
-            request_message_mutex->unlock();
+            request_message_mutex.unlock();
+        } else {
+            request_message_ready_mutex.unlock();
 
-            printVal = false;
-        }
+            led2 = 0;
 
+            /*
+            if (printCount1 > 100) {
+                printf("%d\r", count);
+            } else {
+                printCount1++;
+            }
+            */
+        } 
+        
     }
-    
 }
 
 void handle_ethernet() {
     while (true){
-        eth.sendMbedMessage();
-        eth.recieveComputerMessage(request_message_mutex);
-    }
-    
+
+        led1 = 0;
+
+        request_message_mutex.lock();
+        request_message_ready_mutex.lock();
+
+        eth.recieveComputerMessage();
+
+        // led2 = 0;
+        
+        if (eth.getRequestMessage().has_ack == false) 
+            eth.set_request_message_ready(true);
+
+        request_message_ready_mutex.unlock();
+        request_message_mutex.unlock();
+
+        ThisThread::sleep_for(5ms);
+    } 
 }
 
 void handle_can() {
@@ -151,6 +208,6 @@ void send() {
 }
 
 void togglePrint() {
-    printVal = true;
+    // printVal = true;
+    led2 != led2;
 }
-

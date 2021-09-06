@@ -56,7 +56,7 @@ void ParseProtobufMbed::sendMbedMessage() {
     clientSocket->send(reinterpret_cast<char*>(responsebuffer), response_length);
 }
 
-int ParseProtobufMbed::recieveComputerMessage(Mutex *request_message_mutex) {
+int ParseProtobufMbed::recieveComputerMessage() {
     
     char buffer[BUFFER_SIZE];
 
@@ -64,7 +64,7 @@ int ParseProtobufMbed::recieveComputerMessage(Mutex *request_message_mutex) {
     // int n = clientSocket->recv(buffer, bufferSize - 1);
     // int n = clientSocket->recv(buffer, sizeof(buffer) - 1);
     int n = clientSocket->recv(buffer, sizeof(buffer) - 1);
-    printf("Buffer Size: %d\n", n);
+    // printf("Buffer Size: %d\n", n);
 
     if (n == 0) {
         return n;
@@ -72,7 +72,6 @@ int ParseProtobufMbed::recieveComputerMessage(Mutex *request_message_mutex) {
 
     // printf("Buffer Size: %d \n", n);
 
-    request_message_mutex->lock();
     /* protobuf message to hold request from client */
     requestMessage = RequestMessage_init_zero;
 
@@ -85,7 +84,25 @@ int ParseProtobufMbed::recieveComputerMessage(Mutex *request_message_mutex) {
     /* decode the message */
     bool istatus = pb_decode(&istream, RequestMessage_fields, &requestMessage);
 
-    request_message_mutex->unlock();
+    /*
+    if (requestMessage.has_axis_id == true)
+        printf("Command!\n");
+    */
+    if (requestMessage.has_axis_id == true) {
+        printf(
+            "axis id: %x, can id: %x, cmd id: %x, ",
+            requestMessage.axis_id,
+            requestMessage.can_id,
+            requestMessage.cmd_id
+        );
+
+        if (requestMessage.has_unsigned_int_request ||
+                requestMessage.has_signed_int_request) {
+            printf("data: %d\n", requestMessage.unsigned_int_request);
+        } else if (requestMessage.has_float_request) {
+            printf("requesting float!\n");
+        }
+    }
 
     if (!istatus) {
       printf("Decoding failed: %s\n", PB_GET_ERROR(&istream));
@@ -165,4 +182,12 @@ void ParseProtobufMbed::getMbedIPAddress() {
 
     printf("MBED's IP address is: %s\r\n", ip.get_ip_address() 
             ? ip.get_ip_address() : "No IP\r\n");
+}
+
+bool ParseProtobufMbed::get_request_message_ready() {
+    return request_message_ready;
+}
+
+void ParseProtobufMbed::set_request_message_ready(bool val) {
+    request_message_ready = val;
 }

@@ -5,10 +5,11 @@ message ResponseMessage {
 }
 
 message RequestMessage {
-    optional uint32 can_id = 1;
-    optional uint32 axis_id = 2;
-    optional uint32 cmd_id = 3;
-    optional uint32 unsigned_int_request = 4;
-    optional int32 signed_int_request = 5;
-    optional float float_request = 6; 
+    optional uint32 ack = 1;
+    optional uint32 can_id = 2;
+    optional uint32 axis_id = 3;
+    optional uint32 cmd_id = 4;
+    optional uint32 unsigned_int_request = 5;
+    optional int32 signed_int_request = 6;
+    optional float float_request = 7; 
 }

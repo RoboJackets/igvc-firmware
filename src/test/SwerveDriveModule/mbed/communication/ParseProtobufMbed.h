@@ -23,6 +23,7 @@ class ParseProtobufMbed {
         TCPSocket *clientSocket = nullptr; 
 
         RequestMessage requestMessage;
+        bool request_message_ready = false;
 
         int setupMbedIP();
         int setupServerSocket();
@@ -32,10 +33,12 @@ class ParseProtobufMbed {
         void disconnect();
         bool is_connected();
         void sendMbedMessage();
-        int recieveComputerMessage(Mutex *request_message_mutex);
+        int recieveComputerMessage();
         void getMbedIPAddress();
         void getComputerIPAddress();
         bool requestHasFib();
         RequestMessage getRequestMessage();
+        bool get_request_message_ready();
+        void set_request_message_ready(bool val);
 };
 
