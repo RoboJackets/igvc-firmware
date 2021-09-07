@@ -1,7 +1,5 @@
 #include "ParseProtobufMbed.h"
 
-int fib_numbers[] = {0, 1, 1, 2, 3, 5, 8, 13, 21, 34};
-
 int ParseProtobufMbed::connect() {
     printf("Connecting...\r\n");
 
@@ -84,24 +82,10 @@ int ParseProtobufMbed::recieveComputerMessage() {
     /* decode the message */
     bool istatus = pb_decode(&istream, RequestMessage_fields, &requestMessage);
 
-    /*
-    if (requestMessage.has_axis_id == true)
-        printf("Command!\n");
-    */
+    
     if (requestMessage.has_axis_id == true) {
-        printf(
-            "axis id: %x, can id: %x, cmd id: %x, ",
-            requestMessage.axis_id,
-            requestMessage.can_id,
-            requestMessage.cmd_id
-        );
-
-        if (requestMessage.has_unsigned_int_request ||
-                requestMessage.has_signed_int_request) {
-            printf("data: %d\n", requestMessage.unsigned_int_request);
-        } else if (requestMessage.has_float_request) {
-            printf("requesting float!\n");
-        }
+        // printf("Command!\n");
+        request_message_ready = true;
     }
 
     if (!istatus) {

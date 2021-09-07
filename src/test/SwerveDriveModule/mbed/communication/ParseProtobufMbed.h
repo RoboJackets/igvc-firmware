@@ -18,9 +18,10 @@ constexpr const char *COMPUTER_IP = "192.168.1.21";
 
 class ParseProtobufMbed {
     private:
-        EthernetInterface *net = nullptr;
-        TCPSocket *serverSocket = nullptr;
-        TCPSocket *clientSocket = nullptr; 
+
+        EthernetInterface *net;
+        TCPSocket *serverSocket;
+        TCPSocket *clientSocket; 
 
         RequestMessage requestMessage;
         bool request_message_ready = false;

@@ -24,22 +24,22 @@ pthread_mutex_t send_message_mutex;
 pthread_t ethernet_thread;
 pthread_t input_thread;
 
-RequestMessage message;
-bool send_message_ready = false;
-
 void *handle_input(void *vargp);
 void *handle_ethernet(void *vargp);
 
 int main() {
     
+    ParseProtobuf eth = ParseProtobuf(); 
+    eth.connect();
+
     help_message();
     
     pthread_mutex_init(&send_message_mutex, NULL);
     pthread_mutex_init(&send_message_ready_mutex, NULL);
     pthread_mutex_init(&recv_message_mutex, NULL);
 
-    pthread_create(&ethernet_thread, NULL, handle_ethernet, NULL);
-    pthread_create(&input_thread, NULL, handle_input, NULL);
+    pthread_create(&ethernet_thread, NULL, handle_ethernet, &eth);
+    pthread_create(&input_thread, NULL, handle_input, &eth);
 
     while (true) {
         
@@ -50,8 +50,7 @@ int main() {
 
 void *handle_ethernet(void *vargp) {
 
-    ParseProtobuf eth = ParseProtobuf(); 
-    eth.connect();
+    ParseProtobuf *eth = (ParseProtobuf *) (vargp); 
 
     while (true) {
 
@@ -63,18 +62,18 @@ void *handle_ethernet(void *vargp) {
         pthread_mutex_lock(&send_message_ready_mutex);
 
         // if (eth.get_request_message_ready() == true) {
-        if (send_message_ready == true) {
-            printf("Success!\n");
+        if (eth->get_request_message_ready() == true) {
+            // printf("Success!\n");
             // message ready, send it!
-            eth.send_message(&message);
+            eth->send_message();
             // reset the flag
-            // eth.set_request_message_ready(false);
-            send_message_ready = false;
+            eth->set_request_message_ready(false);
+            // send_message_ready = false;
         } 
         else {
             // message not ready, send ACK
-            eth.populate_ack();
-            eth.send_message();
+            eth->populate_ack();
+            eth->send_message();
         }
 
         pthread_mutex_unlock(&send_message_ready_mutex);
@@ -95,6 +94,8 @@ void *handle_input(void *vargp) {
 
     int can_id = 0;
     int axis_id = 0; 
+
+    ParseProtobuf *eth = (ParseProtobuf *) (vargp); 
 
     while (true) {
         printf(" > ");
@@ -153,27 +154,8 @@ void *handle_input(void *vargp) {
 
                 pthread_mutex_lock(&send_message_mutex);
                 pthread_mutex_lock(&send_message_ready_mutex);
-                // eth.populate_message(&message, can_id, axis_id, 
-                //     0x07, static_cast<uint32_t>(val));
-                //     send_message_ready = true;
-                message = RequestMessage_init_zero;
-
-                // Fill out request message
-                message.has_ack = false;
-                message.has_axis_id = true;
-                message.has_can_id = true;
-                message.has_cmd_id = true;
-                message.has_float_request = false;
-                message.has_signed_int_request = false;
-                message.has_unsigned_int_request = true;
-
-                message.axis_id = static_cast<uint32_t>(axis_id);
-                message.can_id = static_cast<uint32_t>(can_id);
-                message.cmd_id = static_cast<uint32_t>(0x07);
-                message.unsigned_int_request = static_cast<uint32_t>(val);
-
-                send_message_ready = true;
-
+                eth->populate_message(can_id, axis_id, 
+                    0x07, static_cast<uint32_t>(val));
                 pthread_mutex_unlock(&send_message_ready_mutex);
                 pthread_mutex_unlock(&send_message_mutex);
             }
@@ -195,8 +177,8 @@ void *handle_input(void *vargp) {
 
                 pthread_mutex_lock(&send_message_mutex);
                 pthread_mutex_lock(&send_message_ready_mutex);
-                eth.populate_message(&message, can_id, axis_id, 
-                    0x07, static_cast<uint32_t>(val));
+                eth->populate_message(can_id, axis_id, 
+                    0x0B, static_cast<uint32_t>(val));
                 pthread_mutex_unlock(&send_message_ready_mutex);
                 pthread_mutex_unlock(&send_message_mutex);
             }
@@ -210,8 +192,8 @@ void *handle_input(void *vargp) {
 
             pthread_mutex_lock(&send_message_mutex);
             pthread_mutex_lock(&send_message_ready_mutex);
-            eth.populate_message(can_id, axis_id, 
-                0x07, static_cast<float>(val));
+            eth->populate_message(can_id, axis_id, 
+                0x0C, static_cast<float>(val));
             pthread_mutex_unlock(&send_message_ready_mutex);
             pthread_mutex_unlock(&send_message_mutex);
 
@@ -225,8 +207,8 @@ void *handle_input(void *vargp) {
 
             pthread_mutex_lock(&send_message_mutex);
             pthread_mutex_lock(&send_message_ready_mutex);
-            eth.populate_message(can_id, axis_id, 
-                0x07, static_cast<float>(val));
+            eth->populate_message(can_id, axis_id, 
+                0x0D, static_cast<float>(val));
             pthread_mutex_unlock(&send_message_ready_mutex);
             pthread_mutex_unlock(&send_message_mutex);
            
@@ -254,16 +236,16 @@ void *handle_input(void *vargp) {
             pthread_mutex_lock(&send_message_mutex);
             pthread_mutex_lock(&send_message_ready_mutex);
             if (strcmp(cmd_value, "int") == 0) {
-                eth.populate_message(&message, temp_can_id, temp_axis_id, 
+                eth->populate_message(temp_can_id, temp_axis_id, 
                     temp_cmd_id, static_cast<uint32_t>(data));
             } else if (strcmp(cmd_value, "uint") == 0) {
-                eth.populate_message(&message, temp_can_id, temp_axis_id, 
+                eth->populate_message(temp_can_id, temp_axis_id, 
                     temp_cmd_id, static_cast<uint32_t>(data));
             } else if (strcmp(cmd_value, "float") == 0) {
-                eth.populate_message(&message, temp_can_id, temp_axis_id, 
+                eth->populate_message(temp_can_id, temp_axis_id, 
                     temp_cmd_id, static_cast<float>(data));
             } else if (strcmp(cmd_value, "none") == 0) {
-                eth.populate_message(&message, temp_can_id, temp_axis_id, 
+                eth->populate_message(temp_can_id, temp_axis_id, 
                     temp_cmd_id);
             } else {
                 error_message();

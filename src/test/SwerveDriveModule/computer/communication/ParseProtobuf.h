@@ -19,8 +19,8 @@ class ParseProtobuf {
         void send_message();
         void send_message(RequestMessage *message);
         void populate_ack();
-        void populate_message(RequestMessage *message, int can_id, int axis_id, int cmd_id);
-        void populate_message(RequestMessage *message, int can_id, int axis_id, int cmd_id, uint32_t data);
+        void populate_message(int can_id, int axis_id, int cmd_id);
+        void populate_message(int can_id, int axis_id, int cmd_id, uint32_t data);
         void populate_message(int can_id, int axis_id, int cmd_id, int data);
         void populate_message(int can_id, int axis_id, int cmd_id, float data);
    	    int recieve_message();

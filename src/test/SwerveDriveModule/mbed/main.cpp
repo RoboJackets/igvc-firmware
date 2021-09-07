@@ -23,9 +23,9 @@ bool printVal = false;
 int main();
 void send();
 // void togglePrint();
-void handle_ethernet();
+void handle_ethernet(ParseProtobufMbed *eth);
 void handle_can();
-void handle_print();
+void handle_print(ParseProtobufMbed *eth);
 
 ParseProtobufMbed eth;
 
@@ -50,14 +50,14 @@ int main() {
 
     eth.connect();
 
-    ethernet_thread.start(handle_ethernet);
-    // print_thread.start(handle_print);
+    ethernet_thread.start(callback(handle_ethernet, &eth));
+    print_thread.start(callback(handle_print, &eth));
     //can_thread->start(handle_can);
     
     while (true) {}
 }
 
-void handle_print() {
+void handle_print(ParseProtobufMbed *eth) {
 
     int printCount1 = 0;
     int printCount2 = 0;
@@ -74,8 +74,8 @@ void handle_print() {
 
         request_message_ready_mutex.lock();
 
-        if (eth.get_request_message_ready() == true) {
-            eth.set_request_message_ready(false);
+        if (eth->get_request_message_ready() == true) {
+            eth->set_request_message_ready(false);
             request_message_ready_mutex.unlock();
 
             led1 = 1;
@@ -83,7 +83,7 @@ void handle_print() {
             printf("\n");
 
             request_message_mutex.lock();
-            RequestMessage message = eth.getRequestMessage();
+            RequestMessage message = eth->getRequestMessage();
             
             printf(
                 "axis id: %x, can id: %x, cmd id: %x, ",
@@ -116,7 +116,7 @@ void handle_print() {
     }
 }
 
-void handle_ethernet() {
+void handle_ethernet(ParseProtobufMbed *eth) {
     while (true){
 
         led1 = 0;
@@ -124,12 +124,12 @@ void handle_ethernet() {
         request_message_mutex.lock();
         request_message_ready_mutex.lock();
 
-        eth.recieveComputerMessage();
+        eth->recieveComputerMessage();
 
         // led2 = 0;
         
-        if (eth.getRequestMessage().has_ack == false) 
-            eth.set_request_message_ready(true);
+        if (eth->getRequestMessage().has_ack == false) 
+            eth->set_request_message_ready(true);
 
         request_message_ready_mutex.unlock();
         request_message_mutex.unlock();

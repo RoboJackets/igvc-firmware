@@ -5,7 +5,6 @@ void ParseProtobuf::connect() {
     sock_ =  std::make_unique<EthernetSocket>("192.168.1.20", 5333);
 }
 
-
 void ParseProtobuf::send_message() {
     uint8_t buffer[256];
     size_t message_length;
@@ -15,21 +14,6 @@ void ParseProtobuf::send_message() {
 
     /* encode the protobuffer */
     pb_encode(&ostream, RequestMessage_fields, &request);
-    message_length = ostream.bytes_written;
-
-    /* Send the message strapped to a pigeon's leg! */
-    (*sock_).sendMessage(reinterpret_cast<char*>(buffer), message_length);
-}
-
-void ParseProtobuf::send_message(RequestMessage *message) {
-    uint8_t buffer[256];
-    size_t message_length;
-
-    /* Create a stream that will write to our buffer. */
-    pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-    /* encode the protobuffer */
-    pb_encode(&ostream, RequestMessage_fields, message);
     message_length = ostream.bytes_written;
 
     /* Send the message strapped to a pigeon's leg! */
@@ -50,41 +34,41 @@ void ParseProtobuf::populate_ack() {
     request.ack = 1;
 }
 
-void ParseProtobuf::populate_message(RequestMessage *message, int can_id, int axis_id, int cmd_id) {
-    *message = RequestMessage_init_zero;
+void ParseProtobuf::populate_message(int can_id, int axis_id, int cmd_id) {
+    request = RequestMessage_init_zero;
 
     // Fill out request message
-    message->has_ack = false;
-    message->has_axis_id = true;
-    message->has_can_id = true;
-    message->has_cmd_id = true;
-    message->has_float_request = false;
-    message->has_signed_int_request = false;
-    message->has_unsigned_int_request = false;
+    request.has_ack = false;
+    request.has_axis_id = true;
+    request.has_can_id = true;
+    request.has_cmd_id = true;
+    request.has_float_request = false;
+    request.has_signed_int_request = false;
+    request.has_unsigned_int_request = false;
 
-    message->axis_id = static_cast<uint32_t>(axis_id);
-    message->can_id = static_cast<uint32_t>(can_id);
-    message->cmd_id = static_cast<uint32_t>(cmd_id);
+    request.axis_id = static_cast<uint32_t>(axis_id);
+    request.can_id = static_cast<uint32_t>(can_id);
+    request.cmd_id = static_cast<uint32_t>(cmd_id);
 
     set_request_message_ready(true);
 }
 
-void ParseProtobuf::populate_message(RequestMessage *message, int can_id, int axis_id, int cmd_id, uint32_t data) {
-    *message = RequestMessage_init_zero;
+void ParseProtobuf::populate_message(int can_id, int axis_id, int cmd_id, uint32_t data) {
+    request = RequestMessage_init_zero;
 
     // Fill out request message
-    message->has_ack = false;
-    message->has_axis_id = true;
-    message->has_can_id = true;
-    message->has_cmd_id = true;
-    message->has_float_request = false;
-    message->has_signed_int_request = false;
-    message->has_unsigned_int_request = true;
+    request.has_ack = false;
+    request.has_axis_id = true;
+    request.has_can_id = true;
+    request.has_cmd_id = true;
+    request.has_float_request = false;
+    request.has_signed_int_request = false;
+    request.has_unsigned_int_request = true;
 
-    message->axis_id = static_cast<uint32_t>(axis_id);
-    message->can_id = static_cast<uint32_t>(can_id);
-    message->cmd_id = static_cast<uint32_t>(cmd_id);
-    message->unsigned_int_request = static_cast<uint32_t>(data);
+    request.axis_id = static_cast<uint32_t>(axis_id);
+    request.can_id = static_cast<uint32_t>(can_id);
+    request.cmd_id = static_cast<uint32_t>(cmd_id);
+    request.unsigned_int_request = static_cast<uint32_t>(data);
 
     set_request_message_ready(true);
 }
