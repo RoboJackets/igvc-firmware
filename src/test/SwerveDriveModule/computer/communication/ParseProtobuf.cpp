@@ -53,7 +53,7 @@ void ParseProtobuf::populate_message(int can_id, int axis_id, int cmd_id) {
     set_request_message_ready(true);
 }
 
-void ParseProtobuf::populate_message(int can_id, int axis_id, int cmd_id, uint32_t data) {
+void ParseProtobuf::populate_my_message(int can_id, int axis_id, int cmd_id, uint32_t data) {
     request = RequestMessage_init_zero;
 
     // Fill out request message

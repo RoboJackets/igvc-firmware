@@ -24,7 +24,7 @@ int main();
 void send();
 // void togglePrint();
 void handle_ethernet(ParseProtobufMbed *eth);
-void handle_can();
+void handle_can(ParseProtobufMbed *eth);
 void handle_print(ParseProtobufMbed *eth);
 
 ParseProtobufMbed eth;
@@ -50,11 +50,57 @@ int main() {
 
     eth.connect();
 
+    // Cannot start a print thread
+    // Not enough memory
+    // print_thread.start(callback(handle_print, &eth));
+
     ethernet_thread.start(callback(handle_ethernet, &eth));
-    print_thread.start(callback(handle_print, &eth));
-    //can_thread->start(handle_can);
+    can_thread.start(callback(handle_can, &eth));
     
+    led1 = 0;
+    led2 = 0;
+
     while (true) {}
+
+    int printCount1 = 0;
+    int printCount2 = 0;
+    int count = 0;
+    
+    while (true) {
+
+        // Print out thread information
+        if (first) {
+            printf("Ethernet Thread: %x\n", ethernet_thread.get_id());
+            printf("Print Thread: %x\n", print_thread.get_id());
+            first = false;
+        }
+
+        request_message_ready_mutex.lock();
+
+        if (eth.get_request_message_ready() == true) {
+            eth.set_request_message_ready(false);
+            request_message_ready_mutex.unlock();
+
+            led1 = 1;
+
+            printf("\n");
+
+            request_message_mutex.lock();
+            RequestMessage message = eth.getRequestMessage();
+            
+            printf("axis id: %d, can id: %d, cmd id: %d, ", message.axis_id, message.can_id, message.cmd_id);
+
+            if (message.has_unsigned_int_request ||
+                    message.has_signed_int_request) {
+                printf("data: %d\n", message.unsigned_int_request);
+            } else if (message.has_float_request) {
+                printf("requesting float!\n");
+            }
+            request_message_mutex.unlock();
+        } else {
+            request_message_ready_mutex.unlock();
+        } 
+    }
 }
 
 void handle_print(ParseProtobufMbed *eth) {
@@ -138,7 +184,7 @@ void handle_ethernet(ParseProtobufMbed *eth) {
     } 
 }
 
-void handle_can() {
+void handle_can(ParseProtobufMbed *eth) {
     // Ticker
     ticker.attach(&send, 1.0);
 
@@ -147,10 +193,9 @@ void handle_can() {
     int axis_id = 0x03;
     int cmd_id = 0x00D;
     int can_id = axis_id << 5 | cmd_id;
+    int payload = 3;
 
     int id_mask = 0b11111;
-
-    float payload = 5;
 
     // set baud rate to 500 kbps
     can1.frequency(500000);
@@ -159,39 +204,60 @@ void handle_can() {
 
         CANMessage msg;
 
-        if (sw1) {
-            payload = 10;
-            printf("10\n");
-        } else {
-            printf("5\n");
-            payload = 5;
-        }
-    
-        if (ready) {
+        // if (sw1) {
+        //     payload = 10;
+        //     printf("10\n");
+        // } else {
+        //     printf("5\n");
+        //     payload = 5;
+        // }
+
+        request_message_mutex.lock();
+
+        if (eth->get_request_message_ready() == true) {
+            eth->set_request_message_ready(false);
 
             // CANMessage: leaving third argument blank creates a request 
+            
+            RequestMessage message = eth->getRequestMessage();
+
+            axis_id = 0x3;
+            cmd_id = message.cmd_id;
+            can_id = axis_id << 5 | cmd_id;
+            payload = message.float_request;
+
+            if (message.has_unsigned_int_request) {
+                payload = message.unsigned_int_request;
+            } else if (message.has_signed_int_request) {
+                payload = message.signed_int_request;
+            } else if (message.has_float_request) {
+                payload = message.float_request;
+            }
+
+            request_message_mutex.unlock();
             
             if (can1.write(CANMessage(can_id, (char *)(&payload)))) {
             // if (can1.write(CANMessage(can_id))) {
                 counter++;
-                // printf("Message sent: %d\n", counter);
+                //printf("Message sent: %d\n", counter);
             }
-            
 
             ready = false;
-        } else if (can1.read(msg)) {
+        } else {
+
+            request_message_mutex.unlock();
+
+            if (can1.read(msg)) {
             
             /*
             printf("Message received! %x, %x, %x, %x\n", 
                 msg.data[0], msg.data[1], msg.data[2], msg.data[3]);
             */    
 
-            led1 = !led1;
-
             if (msg.id == 0x69) {
                 // printf("Heartbeat message!\n");
             } else if ((msg.id & id_mask) == 0x17){
-                led2 != led2;
+                // led2 != led2;
                 //printf("Voltage value! ID: %x\n", msg.id & id_mask);
 
                 // Litte endian
@@ -200,6 +266,8 @@ void handle_can() {
                 // printf("Data: %2.6f\n", msg.data);
             }
         } 
+        } 
+        
     }
 }
 
@@ -209,5 +277,5 @@ void send() {
 
 void togglePrint() {
     // printVal = true;
-    led2 != led2;
+    // led2 != led2;
 }

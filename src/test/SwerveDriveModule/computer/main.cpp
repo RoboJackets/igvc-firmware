@@ -154,7 +154,7 @@ void *handle_input(void *vargp) {
 
                 pthread_mutex_lock(&send_message_mutex);
                 pthread_mutex_lock(&send_message_ready_mutex);
-                eth->populate_message(can_id, axis_id, 
+                eth->populate_my_message(can_id, axis_id, 
                     0x07, static_cast<uint32_t>(val));
                 pthread_mutex_unlock(&send_message_ready_mutex);
                 pthread_mutex_unlock(&send_message_mutex);
@@ -176,10 +176,8 @@ void *handle_input(void *vargp) {
                 print_send_data(can_id, axis_id, 0x0B, val);
 
                 pthread_mutex_lock(&send_message_mutex);
-                pthread_mutex_lock(&send_message_ready_mutex);
-                eth->populate_message(can_id, axis_id, 
+                eth->populate_my_message(can_id, axis_id, 
                     0x0B, static_cast<uint32_t>(val));
-                pthread_mutex_unlock(&send_message_ready_mutex);
                 pthread_mutex_unlock(&send_message_mutex);
             }
            
@@ -192,23 +190,26 @@ void *handle_input(void *vargp) {
 
             pthread_mutex_lock(&send_message_mutex);
             pthread_mutex_lock(&send_message_ready_mutex);
-            eth->populate_message(can_id, axis_id, 
-                0x0C, static_cast<float>(val));
+            eth->populate_my_message(can_id, axis_id, 
+                0x0C, static_cast<uint32_t>(val));
             pthread_mutex_unlock(&send_message_ready_mutex);
             pthread_mutex_unlock(&send_message_mutex);
 
            
         } else if (strcmp(cmd, "vel") == 0 && num_args == 2) {
             
-            float val;
-            sscanf(cmd_value, "%f", &val);
+            // float val;
+            // sscanf(cmd_value, "%f", &val);
+
+            int val;
+            sscanf(cmd_value, "%d", &val);
 
             print_send_data(can_id, axis_id, 0x0D, val);
 
             pthread_mutex_lock(&send_message_mutex);
             pthread_mutex_lock(&send_message_ready_mutex);
-            eth->populate_message(can_id, axis_id, 
-                0x0D, static_cast<float>(val));
+            eth->populate_my_message(can_id, axis_id, 
+                0x0D, static_cast<uint32_t>(val));
             pthread_mutex_unlock(&send_message_ready_mutex);
             pthread_mutex_unlock(&send_message_mutex);
            
@@ -236,13 +237,13 @@ void *handle_input(void *vargp) {
             pthread_mutex_lock(&send_message_mutex);
             pthread_mutex_lock(&send_message_ready_mutex);
             if (strcmp(cmd_value, "int") == 0) {
-                eth->populate_message(temp_can_id, temp_axis_id, 
+                eth->populate_my_message(temp_can_id, temp_axis_id, 
                     temp_cmd_id, static_cast<uint32_t>(data));
             } else if (strcmp(cmd_value, "uint") == 0) {
-                eth->populate_message(temp_can_id, temp_axis_id, 
+                eth->populate_my_message(temp_can_id, temp_axis_id, 
                     temp_cmd_id, static_cast<uint32_t>(data));
             } else if (strcmp(cmd_value, "float") == 0) {
-                eth->populate_message(temp_can_id, temp_axis_id, 
+                eth->populate_my_message(temp_can_id, temp_axis_id, 
                     temp_cmd_id, static_cast<float>(data));
             } else if (strcmp(cmd_value, "none") == 0) {
                 eth->populate_message(temp_can_id, temp_axis_id, 
