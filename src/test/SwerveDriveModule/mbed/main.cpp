@@ -52,13 +52,15 @@ int main() {
 
     // Cannot start a print thread
     // Not enough memory
-    // print_thread.start(callback(handle_print, &eth));
+    print_thread.start(callback(handle_print, &eth));
 
     ethernet_thread.start(callback(handle_ethernet, &eth));
-    can_thread.start(callback(handle_can, &eth));
+    // can_thread.start(callback(handle_can, &eth));
     
     led1 = 0;
     led2 = 0;
+
+    // handle_print(&eth);
 
     while (true) {}
 
@@ -138,12 +140,20 @@ void handle_print(ParseProtobufMbed *eth) {
                 message.cmd_id
             );
 
+            // if (message.has_unsigned_int_request ||
+            //         message.has_signed_int_request) {
+            //     printf("data: %d\n", message.unsigned_int_request);
+            // } else if (message.has_float_request) {
+            //     printf("requesting float!\n");
+            // }
+
             if (message.has_unsigned_int_request ||
                     message.has_signed_int_request) {
                 printf("data: %d\n", message.unsigned_int_request);
             } else if (message.has_float_request) {
-                printf("requesting float!\n");
+                printf("data: 0x%x\n", *(unsigned int*)&message.float_request);
             }
+
             request_message_mutex.unlock();
         } else {
             request_message_ready_mutex.unlock();
@@ -190,10 +200,12 @@ void handle_can(ParseProtobufMbed *eth) {
 
     // cmd_id = 0x17 works
     // cmd_id = 0x0F works
-    int axis_id = 0x03;
-    int cmd_id = 0x00D;
-    int can_id = axis_id << 5 | cmd_id;
-    int payload = 3;
+    // int axis_id = 0x03;
+    // int cmd_id = 0x00D;
+    // int can_id = axis_id << 5 | cmd_id;
+
+    uint payload;
+    uint message_len;
 
     int id_mask = 0b11111;
 
@@ -221,26 +233,35 @@ void handle_can(ParseProtobufMbed *eth) {
             
             RequestMessage message = eth->getRequestMessage();
 
-            axis_id = 0x3;
-            cmd_id = message.cmd_id;
-            can_id = axis_id << 5 | cmd_id;
-            payload = message.float_request;
+            // axis_id = 0x3;
+            // cmd_id = message.cmd_id;
+            int can_id = (message.can_id << 5) | message.cmd_id;
 
             if (message.has_unsigned_int_request) {
                 payload = message.unsigned_int_request;
+                message_len = -1;
             } else if (message.has_signed_int_request) {
                 payload = message.signed_int_request;
+                message_len = -1;
             } else if (message.has_float_request) {
-                payload = message.float_request;
+                payload = *(unsigned int*)&message.float_request;
+                message_len = 32;
+                // payload = 0x40a00000;
             }
 
             request_message_mutex.unlock();
             
-            if (can1.write(CANMessage(can_id, (char *)(&payload)))) {
-            // if (can1.write(CANMessage(can_id))) {
-                counter++;
-                //printf("Message sent: %d\n", counter);
+            if (message_len == -1) {
+                can1.write(CANMessage(can_id, (char *)(&payload)));
+            } else {
+                can1.write(CANMessage(can_id, (char *)(&payload), message_len));
             }
+
+            // if (can1.write(CANMessage(can_id, (char *)(&payload)))) {
+            // if (can1.write(CANMessage(can_id))) {
+                // counter++;
+                //printf("Message sent: %d\n", counter);
+            // }
 
             ready = false;
         } else {

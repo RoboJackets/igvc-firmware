@@ -109,7 +109,10 @@ void ParseProtobuf::populate_message(int can_id, int axis_id, int cmd_id, float 
     request.axis_id = static_cast<uint32_t>(axis_id);
     request.can_id = static_cast<uint32_t>(can_id);
     request.cmd_id = static_cast<uint32_t>(cmd_id);
-    request.unsigned_int_request = static_cast<float>(data);
+
+    // printf("0x%x\n", ()data);
+
+    request.float_request = static_cast<float>(data);
 
     set_request_message_ready(true);
 }

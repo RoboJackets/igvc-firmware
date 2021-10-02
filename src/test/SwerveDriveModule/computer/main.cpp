@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <iostream>
+#include <stdlib.h>
 #include <string.h>
 #include <thread>
 #include "communication/ParseProtobuf.h"
@@ -10,27 +11,53 @@
 
 using namespace std;
 
+struct thread_args 
+{
+    ParseProtobuf *eth;
+    bool *isDriveControl;
+    int *keyDown;
+};
+
+
 void help_message();
 void error_message();
 void print_send_data(int can_id, int axis_id, int cmd_id);
 void print_send_data(int can_id, int axis_id, int cmd_id, int val);
 void print_send_data(int can_id, int axis_id, int cmd_id, float val);
+void handle_drive_control();
+int keypress();
 
-ParseProtobuf eth;
+// ParseProtobuf eth;
 
 pthread_mutex_t recv_message_mutex;
 pthread_mutex_t send_message_ready_mutex;
 pthread_mutex_t send_message_mutex;
+
+pthread_mutex_t isDriveControl_mutex;
+pthread_mutex_t keyDown_mutex;
+
 pthread_t ethernet_thread;
 pthread_t input_thread;
 
 void *handle_input(void *vargp);
 void *handle_ethernet(void *vargp);
 
+int can_id_arr[4][2] = {
+    0x3, 0x5, 
+    0x13, 0x15,
+    0x23, 0x25,
+    0x33, 0x35
+};
+
 int main() {
-    
+
     ParseProtobuf eth = ParseProtobuf(); 
     eth.connect();
+
+    thread_args *args = new thread_args;
+    args->eth = &eth;
+    // *(args->isDriveControl) = false;
+    // *(args->keyDown) = -1;
 
     help_message();
     
@@ -38,8 +65,8 @@ int main() {
     pthread_mutex_init(&send_message_ready_mutex, NULL);
     pthread_mutex_init(&recv_message_mutex, NULL);
 
-    pthread_create(&ethernet_thread, NULL, handle_ethernet, &eth);
-    pthread_create(&input_thread, NULL, handle_input, &eth);
+    // pthread_create(&ethernet_thread, NULL, handle_ethernet, (void *)args);
+    pthread_create(&input_thread, NULL, handle_input, (void*)args);
 
     while (true) {
         
@@ -50,7 +77,9 @@ int main() {
 
 void *handle_ethernet(void *vargp) {
 
-    ParseProtobuf *eth = (ParseProtobuf *) (vargp); 
+    thread_args *args = (thread_args *) (vargp);
+
+    ParseProtobuf *eth = args->eth; 
 
     while (true) {
 
@@ -90,14 +119,27 @@ void *handle_input(void *vargp) {
 
     int num_args;
     char cmd[15];
-    char cmd_value[15];
+    char cmd_value[32];
 
-    int can_id = 0;
+    int odrive = 0;
     int axis_id = 0; 
 
-    ParseProtobuf *eth = (ParseProtobuf *) (vargp); 
+    thread_args *args = (thread_args *) (vargp);
+
+    ParseProtobuf *eth = args->eth;
+    // bool *isDriveControl = args->isDriveControl;
+    // int *keyDown = args->keyDown;
+    bool *isDriveControl;
+    int *keyDown;
 
     while (true) {
+
+        if (*isDriveControl) {
+            handle_drive_control();
+            *isDriveControl = false;
+            continue;
+        }
+
         printf(" > ");
         cin.getline(input, 30);
 
@@ -107,9 +149,9 @@ void *handle_input(void *vargp) {
         // printf("%s\n", cmd);
         ptr = strtok(nullptr, delim);
         if (ptr != nullptr) {
-            memcpy(cmd_value, ptr, 15);
+            memcpy(cmd_value, ptr, 32);
             num_args = 2;
-            // printf("%s\n", cmd_value);
+            printf("%s\n", cmd_value);
         }
             
         if (strcmp(cmd, "odrive") == 0 && num_args == 2) {
@@ -117,7 +159,7 @@ void *handle_input(void *vargp) {
             sscanf(cmd_value, "%d", &val);
             
             if (val >= 0 && val <= MAX_ODRIVE) {
-                can_id = val;
+                odrive = val;
                 printf("Switched to odrive %d.\n", val);
             } else {
                 printf("Invalid command!\n");
@@ -130,7 +172,7 @@ void *handle_input(void *vargp) {
             if (val >= 0 && val <= MAX_AXIS) {
                 axis_id = val;
                 printf("Switched to axis %d on odrive %d.\n", 
-                    axis_id, can_id);
+                    axis_id, odrive);
             } else {
                 printf("Invalid command!\n");
                 printf("Type 'help' for more information.\n");
@@ -150,11 +192,11 @@ void *handle_input(void *vargp) {
             }
 
             if (val != -1) {
-                print_send_data(can_id, axis_id, 0x07, val);
+                print_send_data(can_id_arr[odrive][axis_id], axis_id, 0x07, val);
 
                 pthread_mutex_lock(&send_message_mutex);
                 pthread_mutex_lock(&send_message_ready_mutex);
-                eth->populate_my_message(can_id, axis_id, 
+                eth->populate_my_message(can_id_arr[odrive][axis_id], axis_id, 
                     0x07, static_cast<uint32_t>(val));
                 pthread_mutex_unlock(&send_message_ready_mutex);
                 pthread_mutex_unlock(&send_message_mutex);
@@ -173,10 +215,10 @@ void *handle_input(void *vargp) {
             }
 
             if (val != -1) {
-                print_send_data(can_id, axis_id, 0x0B, val);
+                print_send_data(can_id_arr[odrive][axis_id], axis_id, 0x0B, val);
 
                 pthread_mutex_lock(&send_message_mutex);
-                eth->populate_my_message(can_id, axis_id, 
+                eth->populate_my_message(can_id_arr[odrive][axis_id], axis_id, 
                     0x0B, static_cast<uint32_t>(val));
                 pthread_mutex_unlock(&send_message_mutex);
             }
@@ -186,11 +228,11 @@ void *handle_input(void *vargp) {
             float val;
             sscanf(cmd_value, "%f", &val);
 
-            print_send_data(can_id, axis_id, 0x0C, val);
+            print_send_data(can_id_arr[odrive][axis_id], axis_id, 0x0C, val);
 
             pthread_mutex_lock(&send_message_mutex);
             pthread_mutex_lock(&send_message_ready_mutex);
-            eth->populate_my_message(can_id, axis_id, 
+            eth->populate_my_message(can_id_arr[odrive][axis_id], axis_id, 
                 0x0C, static_cast<uint32_t>(val));
             pthread_mutex_unlock(&send_message_ready_mutex);
             pthread_mutex_unlock(&send_message_mutex);
@@ -201,18 +243,22 @@ void *handle_input(void *vargp) {
             // float val;
             // sscanf(cmd_value, "%f", &val);
 
-            int val;
-            sscanf(cmd_value, "%d", &val);
+            float val;
+            sscanf(cmd_value, "%f", &val);
 
-            print_send_data(can_id, axis_id, 0x0D, val);
+            printf("0x%x\n", *(unsigned int*)&val);
+
+            print_send_data(can_id_arr[odrive][axis_id], axis_id, 0x0D, static_cast<float>(val));
 
             pthread_mutex_lock(&send_message_mutex);
             pthread_mutex_lock(&send_message_ready_mutex);
-            eth->populate_my_message(can_id, axis_id, 
-                0x0D, static_cast<uint32_t>(val));
+            eth->populate_message(can_id_arr[odrive][axis_id], axis_id, 
+                0x0D, static_cast<float>(val));
             pthread_mutex_unlock(&send_message_ready_mutex);
             pthread_mutex_unlock(&send_message_mutex);
            
+        } else if(strcmp(cmd, "drive") == 0 && num_args == 1) {
+            *isDriveControl = true;
         } else if (strcmp(cmd, "command") == 0 && num_args == 1) {
             char buffer[30];
             int temp_can_id;
@@ -265,6 +311,31 @@ void *handle_input(void *vargp) {
 
     }
     
+}
+
+void handle_drive_control() {
+
+    printf("You are controlling the test rig using WASD.\n");
+    printf("You can only control a single odrive at a time\n");
+
+    while (true){
+        // PROBLEM: this is a blocking call!
+        int key = keypress();
+
+        std::cout << key << "\n";
+    }
+    
+    return;
+}
+
+int keypress() {
+    system ("/bin/stty raw");
+    int c;
+    system ("/bin/stty -echo");
+    c = getc(stdin);
+    system ("/bin/stty echo");
+    system ("/bin/stty cooked");
+    return c;
 }
 
 void print_send_data(int can_id, int axis_id, int cmd_id) {
