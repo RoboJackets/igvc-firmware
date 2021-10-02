@@ -3,19 +3,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <thread>
+#include <mutex>
 #include "communication/ParseProtobuf.h"
-#include "pthread.h"
+// #include "pthread.h"
 
 #define MAX_ODRIVE 1
 #define MAX_AXIS 1
 
 using namespace std;
 
-struct thread_args 
-{
-    ParseProtobuf *eth;
-    bool *isDriveControl;
-    int *keyDown;
+struct drive_data {
+    bool isDriveControl;
+    char keyDown;
 };
 
 
@@ -24,23 +23,18 @@ void error_message();
 void print_send_data(int can_id, int axis_id, int cmd_id);
 void print_send_data(int can_id, int axis_id, int cmd_id, int val);
 void print_send_data(int can_id, int axis_id, int cmd_id, float val);
-void handle_drive_control();
+void handle_drive_control(ParseProtobuf *eth, drive_data *d_data);
 int keypress();
+void send_drive_data(ParseProtobuf *eth, drive_data *d_data);
 
-// ParseProtobuf eth;
+mutex drive_data_mutex;
 
-pthread_mutex_t recv_message_mutex;
-pthread_mutex_t send_message_ready_mutex;
-pthread_mutex_t send_message_mutex;
+mutex recv_message_mutex;
+mutex send_message_ready_mutex;
+mutex send_message_mutex;
 
-pthread_mutex_t isDriveControl_mutex;
-pthread_mutex_t keyDown_mutex;
-
-pthread_t ethernet_thread;
-pthread_t input_thread;
-
-void *handle_input(void *vargp);
-void *handle_ethernet(void *vargp);
+void handle_input(ParseProtobuf *eth, drive_data *d_data);
+void handle_ethernet(ParseProtobuf *eth, drive_data *d_data);
 
 int can_id_arr[4][2] = {
     0x3, 0x5, 
@@ -54,19 +48,25 @@ int main() {
     ParseProtobuf eth = ParseProtobuf(); 
     eth.connect();
 
-    thread_args *args = new thread_args;
-    args->eth = &eth;
+    drive_data d_data;
+    d_data.isDriveControl = false;
+
+    // thread_args *args = new thread_args;
+    // args->eth = &eth;
     // *(args->isDriveControl) = false;
     // *(args->keyDown) = -1;
 
     help_message();
     
-    pthread_mutex_init(&send_message_mutex, NULL);
-    pthread_mutex_init(&send_message_ready_mutex, NULL);
-    pthread_mutex_init(&recv_message_mutex, NULL);
+    // pthread_mutex_init(&send_message_mutex, NULL);
+    // pthread_mutex_init(&send_message_ready_mutex, NULL);
+    // pthread_mutex_init(&recv_message_mutex, NULL);
+
+    thread ethernet_thread(handle_ethernet, &eth, &d_data);
+    thread input_thread(handle_input, &eth, &d_data);
 
     // pthread_create(&ethernet_thread, NULL, handle_ethernet, (void *)args);
-    pthread_create(&input_thread, NULL, handle_input, (void*)args);
+    // pthread_create(&input_thread, NULL, handle_input, (void*)args);
 
     while (true) {
         
@@ -75,11 +75,7 @@ int main() {
     return 0 ;
 }
 
-void *handle_ethernet(void *vargp) {
-
-    thread_args *args = (thread_args *) (vargp);
-
-    ParseProtobuf *eth = args->eth; 
+void handle_ethernet(ParseProtobuf *eth, drive_data *d_data) {
 
     while (true) {
 
@@ -87,8 +83,11 @@ void *handle_ethernet(void *vargp) {
         // eth.recieve_message();
         // pthread_mutex_unlock(&recv_message_mutex);
 
-        pthread_mutex_lock(&send_message_mutex);
-        pthread_mutex_lock(&send_message_ready_mutex);
+        // pthread_mutex_lock(&send_message_mutex);
+        // pthread_mutex_lock(&send_message_ready_mutex);
+
+        send_message_mutex.lock();
+        send_message_ready_mutex.lock();
 
         // if (eth.get_request_message_ready() == true) {
         if (eth->get_request_message_ready() == true) {
@@ -105,14 +104,17 @@ void *handle_ethernet(void *vargp) {
             eth->send_message();
         }
 
-        pthread_mutex_unlock(&send_message_ready_mutex);
-        pthread_mutex_unlock(&send_message_mutex);
+        // pthread_mutex_unlock(&send_message_ready_mutex);
+        // pthread_mutex_unlock(&send_message_mutex);
+
+        send_message_ready_mutex.unlock();
+        send_message_mutex.unlock();
 
         std::this_thread::sleep_for(20ms);
     }
 }
 
-void *handle_input(void *vargp) {
+void handle_input(ParseProtobuf *eth, drive_data *d_data) {
     char input[30];
     char delim[] = " ";
     char *ptr;
@@ -124,21 +126,24 @@ void *handle_input(void *vargp) {
     int odrive = 0;
     int axis_id = 0; 
 
-    thread_args *args = (thread_args *) (vargp);
-
-    ParseProtobuf *eth = args->eth;
     // bool *isDriveControl = args->isDriveControl;
     // int *keyDown = args->keyDown;
-    bool *isDriveControl;
-    int *keyDown;
 
     while (true) {
 
-        if (*isDriveControl) {
-            handle_drive_control();
-            *isDriveControl = false;
+        drive_data_mutex.lock();
+        if (d_data->isDriveControl) {
+            drive_data_mutex.unlock();
+
+            handle_drive_control(eth, d_data);
+
+            drive_data_mutex.lock();
+            d_data->isDriveControl = false;
+            drive_data_mutex.unlock();
+
             continue;
         }
+        drive_data_mutex.unlock();
 
         printf(" > ");
         cin.getline(input, 30);
@@ -194,12 +199,18 @@ void *handle_input(void *vargp) {
             if (val != -1) {
                 print_send_data(can_id_arr[odrive][axis_id], axis_id, 0x07, val);
 
-                pthread_mutex_lock(&send_message_mutex);
-                pthread_mutex_lock(&send_message_ready_mutex);
+                // pthread_mutex_lock(&send_message_mutex);
+                // pthread_mutex_lock(&send_message_ready_mutex);
+                send_message_mutex.lock();
+                send_message_ready_mutex.lock();
+
                 eth->populate_my_message(can_id_arr[odrive][axis_id], axis_id, 
                     0x07, static_cast<uint32_t>(val));
-                pthread_mutex_unlock(&send_message_ready_mutex);
-                pthread_mutex_unlock(&send_message_mutex);
+                // pthread_mutex_unlock(&send_message_ready_mutex);
+                // pthread_mutex_unlock(&send_message_mutex);
+
+                send_message_ready_mutex.unlock();
+                send_message_mutex.unlock();
             }
            
         } else if (strcmp(cmd, "control_mode") == 0 && num_args == 2) {
@@ -217,10 +228,12 @@ void *handle_input(void *vargp) {
             if (val != -1) {
                 print_send_data(can_id_arr[odrive][axis_id], axis_id, 0x0B, val);
 
-                pthread_mutex_lock(&send_message_mutex);
+                // pthread_mutex_lock(&send_message_mutex);
+                send_message_mutex.lock();
                 eth->populate_my_message(can_id_arr[odrive][axis_id], axis_id, 
                     0x0B, static_cast<uint32_t>(val));
-                pthread_mutex_unlock(&send_message_mutex);
+                // pthread_mutex_unlock(&send_message_mutex);
+                send_message_mutex.unlock();
             }
            
         } else if (strcmp(cmd, "pos") == 0 && num_args == 2) {
@@ -230,13 +243,17 @@ void *handle_input(void *vargp) {
 
             print_send_data(can_id_arr[odrive][axis_id], axis_id, 0x0C, val);
 
-            pthread_mutex_lock(&send_message_mutex);
-            pthread_mutex_lock(&send_message_ready_mutex);
+            // pthread_mutex_lock(&send_message_mutex);
+            // pthread_mutex_lock(&send_message_ready_mutex);
+            send_message_mutex.lock();
+            send_message_ready_mutex.lock();
+            
             eth->populate_my_message(can_id_arr[odrive][axis_id], axis_id, 
                 0x0C, static_cast<uint32_t>(val));
-            pthread_mutex_unlock(&send_message_ready_mutex);
-            pthread_mutex_unlock(&send_message_mutex);
-
+            // pthread_mutex_unlock(&send_message_ready_mutex);
+            // pthread_mutex_unlock(&send_message_mutex);
+            send_message_ready_mutex.unlock();
+            send_message_mutex.unlock();
            
         } else if (strcmp(cmd, "vel") == 0 && num_args == 2) {
             
@@ -250,15 +267,22 @@ void *handle_input(void *vargp) {
 
             print_send_data(can_id_arr[odrive][axis_id], axis_id, 0x0D, static_cast<float>(val));
 
-            pthread_mutex_lock(&send_message_mutex);
-            pthread_mutex_lock(&send_message_ready_mutex);
+            // pthread_mutex_lock(&send_message_mutex);
+            // pthread_mutex_lock(&send_message_ready_mutex);
+            send_message_mutex.lock();
+            send_message_ready_mutex.lock();
+            
             eth->populate_message(can_id_arr[odrive][axis_id], axis_id, 
                 0x0D, static_cast<float>(val));
-            pthread_mutex_unlock(&send_message_ready_mutex);
-            pthread_mutex_unlock(&send_message_mutex);
+            // pthread_mutex_unlock(&send_message_ready_mutex);
+            // pthread_mutex_unlock(&send_message_mutex);
+            send_message_ready_mutex.unlock();
+            send_message_mutex.unlock();
            
         } else if(strcmp(cmd, "drive") == 0 && num_args == 1) {
-            *isDriveControl = true;
+            drive_data_mutex.lock();
+            d_data->isDriveControl = true;
+            drive_data_mutex.unlock();
         } else if (strcmp(cmd, "command") == 0 && num_args == 1) {
             char buffer[30];
             int temp_can_id;
@@ -280,8 +304,11 @@ void *handle_input(void *vargp) {
             printf("int, uint, float, or none? ");
             cin.getline(buffer, 30);
 
-            pthread_mutex_lock(&send_message_mutex);
-            pthread_mutex_lock(&send_message_ready_mutex);
+            // pthread_mutex_lock(&send_message_mutex);
+            // pthread_mutex_lock(&send_message_ready_mutex);
+            send_message_mutex.lock();
+            send_message_ready_mutex.lock();
+            
             if (strcmp(cmd_value, "int") == 0) {
                 eth->populate_my_message(temp_can_id, temp_axis_id, 
                     temp_cmd_id, static_cast<uint32_t>(data));
@@ -297,8 +324,10 @@ void *handle_input(void *vargp) {
             } else {
                 error_message();
             }
-            pthread_mutex_unlock(&send_message_ready_mutex);
-            pthread_mutex_unlock(&send_message_mutex);
+            // pthread_mutex_unlock(&send_message_ready_mutex);
+            // pthread_mutex_unlock(&send_message_mutex);
+            send_message_ready_mutex.unlock();
+            send_message_mutex.unlock();
 
             print_send_data(temp_can_id, temp_axis_id, 
                 temp_cmd_id, 5);
@@ -313,19 +342,98 @@ void *handle_input(void *vargp) {
     
 }
 
-void handle_drive_control() {
+void handle_drive_control(ParseProtobuf *eth, drive_data *d_data) {
 
     printf("You are controlling the test rig using WASD.\n");
     printf("You can only control a single odrive at a time\n");
 
+    thread send_data_thread(send_drive_data, eth, d_data);
+
     while (true){
         // PROBLEM: this is a blocking call!
         int key = keypress();
+        drive_data_mutex.lock();
+            d_data->keyDown = (char)key;
+            d_data->isDriveControl = true;
+        drive_data_mutex.unlock();
 
         std::cout << key << "\n";
     }
     
     return;
+}
+
+void send_drive_data(ParseProtobuf *eth, drive_data *d_data) {
+
+    float velocity;
+    int odrive = 0;
+    int axis_id = 0;
+
+    bool button_down = false;
+    bool prev_button_down = false;
+    char prev_char = 0;
+
+    while (true) {
+
+        drive_data_mutex.lock();
+        if (d_data->isDriveControl) {
+                    
+            d_data->isDriveControl = false;
+
+            if (d_data->keyDown == 'a') {
+                axis_id = 0;
+                velocity = 2;
+                button_down = true;
+                prev_char = 'a';
+            } else if (d_data->keyDown == 'd') {
+                axis_id = 0;
+                velocity = -2;
+                button_down = true;
+                prev_char = 'd';
+            } else if (d_data->keyDown == 'w') {
+                axis_id = 1;
+                velocity = 2;
+                button_down = true;
+                prev_char = 'w';
+            } else if (d_data->keyDown == 's') {
+                axis_id = 1;
+                velocity = -2;
+                button_down = true;
+                prev_char = 's';
+            } else {
+                velocity = 0;
+                button_down = false;
+            }
+
+            drive_data_mutex.unlock();
+
+            send_message_mutex.lock();
+            send_message_ready_mutex.lock();
+            eth->populate_message(can_id_arr[odrive][axis_id], axis_id, 
+                0x0D, velocity);
+            send_message_ready_mutex.unlock();
+            send_message_mutex.unlock();
+            
+        } else {
+            button_down = false;
+            d_data->isDriveControl = false;
+            drive_data_mutex.unlock();
+
+            if (prev_button_down) {
+                send_message_mutex.lock();
+                send_message_ready_mutex.lock();
+                eth->populate_message(can_id_arr[odrive][axis_id], axis_id, 
+                    0x0D, 0);
+                send_message_ready_mutex.unlock();
+                send_message_mutex.unlock();
+            }
+        }
+
+        prev_button_down = button_down;
+
+        this_thread::sleep_for(200ms);
+    }
+    
 }
 
 int keypress() {
