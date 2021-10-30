@@ -1,0 +1,19 @@
+// This is the turning motor; spin this slowly to avoid twisting around the wheel!!!!
+
+odrv0.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+odrv0.axis0.controller.input_vel = 0
+odrv0.axis0.controller.input_vel = 0.5
+odrv0.axis0.controller.input_vel = -0.5
+odrv0.axis0.requested_state = AXIS_STATE_IDLE
+
+// This is the drive motor; you can spin this fairly fast
+
+odrv0.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+odrv0.axis1.controller.input_vel = 0
+odrv0.axis1.controller.input_vel = 5
+odrv0.axis1.controller.input_vel = -5
+odrv0.axis1.controller.input_vel = 0
+odrv0.axis1.requested_state = AXIS_STATE_IDLE
+
+NOTE: on the odrives, TURN OFF INDEX SEARCH:
+odrv0.axis0.encoder.config.use_index = False
