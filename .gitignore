@@ -1,5 +1,6 @@
 # lib/*
 lib/mbed-cmake-config*
+lib/boost_1_77_0*
 build/*
 OutputCMake/*
 
