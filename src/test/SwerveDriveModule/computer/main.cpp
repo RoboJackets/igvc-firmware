@@ -110,7 +110,7 @@ void handle_ethernet(ParseProtobuf *eth, drive_data *d_data) {
         send_message_ready_mutex.unlock();
         send_message_mutex.unlock();
 
-        std::this_thread::sleep_for(20ms);
+        std::this_thread::sleep_for(50ms);
     }
 }
 
@@ -280,6 +280,26 @@ void handle_input(ParseProtobuf *eth, drive_data *d_data) {
             send_message_mutex.unlock();
            
         } else if(strcmp(cmd, "drive") == 0 && num_args == 1) {
+
+            // // axis_state CONTROL
+            // int val = 8;
+
+            // // odrive
+            // for (int i = 0; i < 2; i ++) {
+            //     //axis 
+            //     for (int j = 0; j < 2; j++) {
+            //         send_message_mutex.lock();
+            //         send_message_ready_mutex.lock();
+            //         eth->populate_my_message(can_id_arr[i][j], j, 
+            //             0x07, static_cast<uint32_t>(val));
+            //         send_message_ready_mutex.unlock();
+            //         send_message_mutex.unlock();
+                    
+
+            //         std::this_thread::sleep_for(100ms);
+            //     }
+            // }
+
             drive_data_mutex.lock();
             d_data->isDriveControl = true;
             drive_data_mutex.unlock();
@@ -382,24 +402,30 @@ void send_drive_data(ParseProtobuf *eth, drive_data *d_data) {
 
             if (d_data->keyDown == 'a') {
                 axis_id = 0;
-                velocity = 2;
+                velocity = 1;
                 button_down = true;
                 prev_char = 'a';
             } else if (d_data->keyDown == 'd') {
                 axis_id = 0;
-                velocity = -2;
+                velocity = -1;
                 button_down = true;
                 prev_char = 'd';
             } else if (d_data->keyDown == 'w') {
                 axis_id = 1;
-                velocity = 2;
+                velocity = 1;
                 button_down = true;
                 prev_char = 'w';
             } else if (d_data->keyDown == 's') {
                 axis_id = 1;
-                velocity = -2;
+                velocity = -1;
                 button_down = true;
                 prev_char = 's';
+            } else if (d_data->keyDown == '0') {
+                velocity = 0;
+                odrive = 0;
+            } else if (d_data->keyDown == '1') {
+                velocity = 0;
+                odrive = 1;
             } else {
                 velocity = 0;
                 button_down = false;

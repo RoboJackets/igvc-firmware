@@ -52,10 +52,10 @@ int main() {
 
     // Cannot start a print thread
     // Not enough memory
-    print_thread.start(callback(handle_print, &eth));
+    // print_thread.start(callback(handle_print, &eth));
 
     ethernet_thread.start(callback(handle_ethernet, &eth));
-    // can_thread.start(callback(handle_can, &eth));
+    can_thread.start(callback(handle_can, &eth));
     
     led1 = 0;
     led2 = 0;
