@@ -53,7 +53,7 @@ void setup() {
         break;
       }
 
-      rf95.setTxPower(23, false);
+      rf95.setTxPower(23);
 
       setupFailure = false;
     }
