@@ -29,6 +29,9 @@ void setup() {
     delay(10);
     digitalWrite(RFM95_RST, HIGH);
     delay(10);
+
+    Serial.begin(9600);
+    Serial.println("Initialized");
   
     while (!rf95.init()) {
       break;
@@ -44,7 +47,7 @@ void setup() {
     // The default transmitter power is 13dBm, using PA_BOOST.
     // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then 
     // you can set transmitter powers from 5 to 23 dBm:
-    rf95.setTxPower(23, false);
+    rf95.setTxPower(23);
 
     setupFailure = false;
   }
@@ -69,6 +72,7 @@ void loop() {
         // digitalWrite(status_led, HIGH);
         // fastBlink(30);
         digitalWrite(out_pin, LOW);
+        Serial.println("Sending");
       } else if (strcmp((char *)buf, "STOP") == 0) {
         digitalWrite(status_led, LOW);
         digitalWrite(out_pin, HIGH);
@@ -99,9 +103,9 @@ void blink(int numTimes) {
   for (int i = 0; i < numTimes; i++) {
     
     digitalWrite(status_led, HIGH);
-    for (j = 0; j < 10000; j++) {}
+    delay(1000);
     digitalWrite(status_led, LOW);
-    for (j = 0; j < 10000; j++) {}
+    delay(1000);
   }
 }
 
@@ -112,8 +116,8 @@ void fastBlink(int numTimes) {
   for (int i = 0; i < numTimes; i++) {
     
     digitalWrite(status_led, HIGH);
-    for (j = 0; j < 1000; j++) {}
+    delay(100);
     digitalWrite(status_led, LOW);
-    for (j = 0; j < 1000; j++) {}
+    delay(100);
   }
 }
