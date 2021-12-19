@@ -3,15 +3,19 @@ lib/mbed-cmake-config*
 lib/boost_1_77_0*
 build/*
 OutputCMake/*
+venv
 
 # **/lib/*
 **/CMakeFiles*
 **/nanopb*
+**/boost_1_78_0
 !lib/nanopb*
 
 wervi*
 
 .vscode
+.idea
+cmake-build-debug/
 
 # Every folder marked with .gitkeep is NOT excluded.
 # The command

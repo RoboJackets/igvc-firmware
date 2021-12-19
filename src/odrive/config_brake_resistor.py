@@ -20,6 +20,7 @@ odrv0 = odrive.find_any()
 odrv0.config.enable_brake_resistor = True
 odrv0.config.brake_resistance = 2
 odrv0.config.dc_max_negative_current = -0.010
+# odrv0.config.max_regen_current = 10
 
 ##########################
 ### SAVE CONFIGURATION ###
