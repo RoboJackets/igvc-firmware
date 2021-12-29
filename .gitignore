@@ -13,6 +13,9 @@ venv
 
 wervi*
 
+__pycache__
+src/odrive/swervi
+
 .vscode
 .idea
 cmake-build-debug/
