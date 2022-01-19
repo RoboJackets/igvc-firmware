@@ -1,3 +1,6 @@
+#ifndef IGVC_FIRMWARE_PARSEPROTOBUFMBED_H
+#define IGVC_FIRMWARE_PARSEPROTOBUFMBED_H
+
 #include "mbed.h"
 #include "rtos.h"
 
@@ -34,7 +37,7 @@ class ParseProtobufMbed {
         void disconnect();
         bool is_connected();
         void sendMbedMessage();
-        int recieveComputerMessage();
+        bool recieveComputerMessage();
         void getMbedIPAddress();
         void getComputerIPAddress();
         bool requestHasFib();
@@ -42,4 +45,6 @@ class ParseProtobufMbed {
         bool get_request_message_ready();
         void set_request_message_ready(bool val);
 };
+
+#endif
 

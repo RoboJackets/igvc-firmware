@@ -30,6 +30,9 @@ class MotorConfig:
 
         # self.axis0.encoder.config.direction = -1
 
+        # if use_reversed:
+        #     self.axis0.config.calibration_lockin.accel = -20
+
         # axis.controller.config
         self.axis0.controller.config.vel_limit = 20
         self.axis0.controller.config.input_filter_bandwidth = 2.0
@@ -71,8 +74,8 @@ class MotorConfig:
         print("Performing encoder offset calibration for axis0, the steering motor...")
         input("When calibration completes, press ENTER.")
 
-    def configure_axis0_motor_pre_calibrated(self):
-        self.axis0.motor.config.pre_calibrated = True
+    def toggle_axis0_motor_pre_calibrated(self, isenabled):
+        self.axis0.motor.config.pre_calibrated = isenabled
 
     def configure_axis0_pre_calibrated(self):
         print("axis0 done calibrating! Saving settings as pre-calibrated...")
@@ -205,6 +208,24 @@ class MotorConfig:
             print("No errors found!")
             return False
 
+def calib_axis0_motor(motor):
+
+    motor.toggle_axis0_motor_pre_calibrated(False)
+    motor.save()
+    motor.reboot()
+
+    while True:
+        motor.configure_axis0_motor()
+        errors_occurred = motor.check_for_errors(0)
+
+        if errors_occurred:
+            print("Motor calibration failed, retrying...")
+            motor.save()
+            motor.reboot()
+            continue
+        else:
+            break
+
 def new_full_calib_sequence(motor):
     motor.erase()
 
@@ -236,7 +257,7 @@ def new_full_calib_sequence(motor):
         else:
             break
 
-    motor.configure_axis0_motor_pre_calibrated()
+    motor.toggle_axis0_motor_pre_calibrated(True)
     motor.save()
     motor.reboot()
 
@@ -245,14 +266,14 @@ def new_full_calib_sequence(motor):
 
         motor.configure_axis0_index_signal()
 
-        # motor.configure_axis0_toggle_reverse_index_search(True)
+        motor.configure_axis0_toggle_reverse_index_search(True)
 
         motor.configure_axis0_encoder_offset_calibration()
         errors_occurred = motor.check_for_errors(0)
 
         if errors_occurred:
             print("Encoder offset calibration failed, retrying...")
-            # motor.configure_axis0_toggle_reverse_index_search(False)
+            motor.configure_axis0_toggle_reverse_index_search(False)
             motor.save()
             motor.reboot()
             continue
@@ -359,7 +380,7 @@ def full_calib_sequence(motor):
         else:
             break
 
-    motor.configure_axis0_pre_calibrated()
+    motor.toggle_axis0_motor_pre_calibrated(True)
     motor.save()
     motor.reboot()
 
@@ -409,9 +430,8 @@ if __name__== "__main__":
     # full_calib_sequence(motor)
 
     # new_full_calib_sequence(motor)
+
     full_testing_sequence(motor)
-
-
 
 
 

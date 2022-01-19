@@ -4,6 +4,15 @@ import sys
 import time
 # from fibre.protocol import ChannelBrokenException
 
+FL_ANGLE_CAN_ID = 0X3
+FL_VEL_CAN_ID   = 0X5
+FR_ANGLE_CAN_ID = 0X13
+FR_VEL_CAN_ID   = 0X15
+BL_ANGLE_CAN_ID = 0X33
+BL_VEL_CAN_ID   = 0X35
+BR_ANGLE_CAN_ID = 0X23
+BR_VEL_CAN_ID   = 0X25
+
 class MotorConfig:
 
     def __init__(self):
@@ -20,7 +29,7 @@ class MotorConfig:
         self.odrv.config.brake_resistance = 2
         self.odrv.config.dc_max_negative_current = -0.010
 
-    def configure_axis0_motor(self):
+    def configure_axis0_motor(self, use_reversed):
         print("Configuring axis0, the steering motor...")
         # Change this to change direction of index search
         # self.axis0.config.calibration_lockin.accel = -20
@@ -204,6 +213,18 @@ class MotorConfig:
             print("No errors found!")
             return False
 
+    def set_control(self, axis):
+        if axis == 0:
+            self.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+        elif axis == 1:
+            self.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+
+    def set_idle(self, axis):
+        if axis == 0:
+            self.axis0.requested_state = AXIS_STATE_IDLE
+        elif axis == 1:
+            self.axis1.requested_state = AXIS_STATE_IDLE
+
 def new_full_calib_sequence(motor):
     motor.erase()
 
@@ -370,11 +391,11 @@ def full_testing_sequence(motor):
     input("Press ENTER when ready.")
     motor.test_axis1()
 
-    motor.reboot()
+    # motor.reboot()
 
     print("Testing Complete.")
 
-def _steering_calib(motor, useReversed):
+def _steering_calib(motor, use_reversed):
 
     motor.erase()
 
@@ -395,7 +416,7 @@ def _steering_calib(motor, useReversed):
     # motor.clear_errors()
 
     while True:
-        motor.configure_axis0_motor()
+        motor.configure_axis0_motor(use_reversed)
         errors_occurred = motor.check_for_errors(0)
 
         if errors_occurred:
@@ -415,6 +436,8 @@ def _steering_calib(motor, useReversed):
         motor.configure_axis0_index_signal()
 
         # motor.configure_axis0_toggle_reverse_index_search(True)
+        if use_reversed:
+            motor.axis0.config.calibration_lockin.accel = -20
 
         motor.configure_axis0_encoder_offset_calibration()
         errors_occurred = motor.check_for_errors(0)
@@ -465,6 +488,31 @@ def _drive_calib(motor):
     input("Press ENTER when ready. Alternatively, press CTRL + C to quit.")
     motor.test_axis1()
 
+def _can_calib(motor, can_id_axis_0, can_id_axis_1):
+    motor.axis0.config.can.node_id = can_id_axis_0
+    motor.axis1.config.can.node_id = can_id_axis_1
+    motor.odrv.can.config.baud_rate = 500000
+
+    motor.save()
+    motor.reboot()
+
+# GENERAL COMMANDS
+
+def set_closed_loop_control(axis0Active, axis1Active):
+
+    motor = MotorConfig()
+
+    if axis0Active:
+        motor.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+    else:
+        motor.axis0.requested_state = AXIS_STATE_IDLE
+
+    if axis1Active:
+        motor.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+    else:
+        motor.axis1.requested_state = AXIS_STATE_IDLE
+
+
 # ORANGE MOTOR
 def orange_steering_calib():
     motor = MotorConfig()
@@ -477,12 +525,18 @@ def orange_drive_calib():
 def orange_full_calib():
     motor = MotorConfig()
     _steering_calib(motor, True)
+    motor.set_idle(0)
+    _can_calib(motor, BL_ANGLE_CAN_ID, BL_VEL_CAN_ID)
     _drive_calib(motor)
+
+def orange_full_test():
+    motor = MotorConfig()
+    full_testing_sequence(motor)
 
 # WHITE MOTOR
 def white_steering_calib():
     motor = MotorConfig()
-    _steering_calib(motor, True)
+    _steering_calib(motor, False)
 
 def white_drive_calib():
     motor = MotorConfig()
@@ -490,8 +544,14 @@ def white_drive_calib():
 
 def white_full_calib():
     motor = MotorConfig()
-    _steering_calib(motor, True)
+    _steering_calib(motor, False)
+    motor.set_idle(0)
+    _can_calib(motor, BR_ANGLE_CAN_ID, BR_VEL_CAN_ID)
     _drive_calib(motor)
+
+def white_full_test():
+    motor = MotorConfig()
+    full_testing_sequence(motor)
 
 # RED MOTOR
 def red_steering_calib():
@@ -504,13 +564,20 @@ def red_drive_calib():
 
 def red_full_calib():
     motor = MotorConfig()
+
     _steering_calib(motor, True)
+    motor.set_idle(0)
+    _can_calib(motor, FL_ANGLE_CAN_ID, FL_VEL_CAN_ID)
     _drive_calib(motor)
+
+def red_full_test():
+    motor = MotorConfig()
+    full_testing_sequence(motor)
 
 # BROWN MOTOR
 def brown_steering_calib():
     motor = MotorConfig()
-    _steering_calib(motor, True)
+    _steering_calib(motor, False)
 
 def brown_drive_calib():
     motor = MotorConfig()
@@ -518,8 +585,15 @@ def brown_drive_calib():
 
 def brown_full_calib():
     motor = MotorConfig()
-    _steering_calib(motor, True)
+
+    _steering_calib(motor, False)
+    motor.set_idle(0)
+    _can_calib(motor, FR_ANGLE_CAN_ID, FR_VEL_CAN_ID)
     _drive_calib(motor)
+
+def brown_full_test():
+    motor = MotorConfig()
+    full_testing_sequence(motor)
 
 
 # if __name__== "__main__":

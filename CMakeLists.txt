@@ -27,7 +27,17 @@ cmake_minimum_required(VERSION 3.12)
 option(BUILD_PROTOBUF   "Build Protobuffer" OFF)
 option(BUILD_MBED       "Build program for mbed" OFF)
 
-if (${BUILD_PROGRAM} STREQUAL TEST_ETHERNET_SERVER)
+if (${BUILD_PROGRAM} STREQUAL MAIN)
+    set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/main/mbed)
+    set(PROGRAM_SRC ${SRC_DIR}/main.cpp
+            ${SRC_DIR}/communication/ParseProtobufMbed.cpp
+            ${SRC_DIR}/can/CANCommon.cpp
+            ${SRC_DIR}/motors/MotorCommand.cpp
+            )
+    set(PROTOS ${SRC_DIR}/communication/swerve_commands.proto)
+    set(BUILD_PROTOBUF ON)
+    set(BUILD_MBED ON)
+elseif (${BUILD_PROGRAM} STREQUAL TEST_ETHERNET_SERVER)
     set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/test/EthernetTest/EthernetTestServer)    
     set(PROGRAM_SRC ${SRC_DIR}/main.cpp
             ${SRC_DIR}/ParseProtobuf.cpp
@@ -171,10 +181,9 @@ if (${BUILD_MBED})
     # -------------------------------------------------------------
     
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-    
-    
-    if (${BUILD_PROGRAM} STREQUAL TEST_ETHERNET_CLIENT)
-        add_mbed_executable(test_ethernet_client ${PROGRAM_SRC} ${PROTO_FILES})
+
+    if (${BUILD_PROGRAM} STREQUAL MAIN)
+        add_mbed_executable(swervi_firmware ${PROGRAM_SRC} ${PROTO_FILES})
     elseif (${BUILD_PROGRAM} STREQUAL TEST_BLINK)
         add_mbed_executable(blink ${PROGRAM_SRC} ${PROTO_FILES})
     elseif (${BUILD_PROGRAM} STREQUAL TEST_LIDAR_LITE_MBED)

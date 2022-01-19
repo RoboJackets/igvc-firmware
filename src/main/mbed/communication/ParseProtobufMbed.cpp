@@ -54,7 +54,7 @@ void ParseProtobufMbed::sendMbedMessage() {
     clientSocket->send(reinterpret_cast<char*>(responsebuffer), response_length);
 }
 
-int ParseProtobufMbed::recieveComputerMessage() {
+bool ParseProtobufMbed::recieveComputerMessage() {
     
     char buffer[BUFFER_SIZE];
 
@@ -65,7 +65,8 @@ int ParseProtobufMbed::recieveComputerMessage() {
     // printf("Buffer Size: %d\n", n);
 
     if (n == 0) {
-        return n;
+//        return n;
+        return false;
     }
 
     // printf("Buffer Size: %d \n", n);
@@ -83,16 +84,19 @@ int ParseProtobufMbed::recieveComputerMessage() {
     bool istatus = pb_decode(&istream, RequestMessage_fields, &requestMessage);
 
     
-    if (requestMessage.has_axis_id == true) {
+//    if (requestMessage.has_axis_id == true) {
         // printf("Command!\n");
-        request_message_ready = true;
-    }
+//         request_message_ready = true;
+//    }
+
+    request_message_ready = true;
 
     if (!istatus) {
-      printf("Decoding failed: %s\n", PB_GET_ERROR(&istream));
+//      printf("Decoding failed: %s\n", PB_GET_ERROR(&istream));
     }
 
-    return n;
+//    return n;
+    return istatus;
 }
 
 RequestMessage ParseProtobufMbed::getRequestMessage() {
