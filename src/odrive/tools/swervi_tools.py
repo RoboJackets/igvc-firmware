@@ -36,12 +36,25 @@ class MotorConfig:
         # self.axis0.config.calibration_lockin.vel = 40
         # self.axis0.config.calibration_lockin.ramp_distance = 3.14
 
-        # self.axis0.encoder.config.direction = -1
+    # self.axis0.encoder.config.direction = -1
 
         # axis.controller.config
         self.axis0.controller.config.vel_limit = 20
-        self.axis0.controller.config.input_filter_bandwidth = 2.0
+        # self.axis0.controller.input_vel = 0
+
+        # # POSITION CONTROL
+        # self.axis0.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
+
+        # FILTERED POSITION CONTROL
+        self.axis0.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
+        self.axis0.controller.config.input_filter_bandwidth = 3.0
         self.axis0.controller.config.input_mode = INPUT_MODE_POS_FILTER
+
+        # # TRAJECTORY CONTROL
+        # self.axis0.trap_traj.config.vel_limit = 5
+        # self.axis0.trap_traj.config.accel_limit = 0.05
+        # self.axis0.trap_traj.config.decel_limit = 0.05
+        # self.axis0.controller.config.inertia = 0
 
         # axis.motor.config
         self.axis0.motor.config.pole_pairs = 7
@@ -49,10 +62,14 @@ class MotorConfig:
         self.axis0.motor.config.calibration_current = 20
 
         # axis.encoder.config
-        self.axis0.encoder.config.cpr = 819
+        # self.axis0.encoder.config.cpr = 819
+        self.axis0.encoder.config.cpr = 4096
         self.axis0.encoder.config.mode = ENCODER_MODE_INCREMENTAL
+        self.axis0.encoder.config.index_offset = 0
 
         # self.axis0.encoder.config.find_idx_on_lockin_only = True
+        # self.axis0.encoder.config.calib_scan_distance = 1000
+        # self.axis0.config.general_lockin.finish_distance = 1000
 
         # Perform the calibration...
         self.axis0.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
@@ -455,9 +472,9 @@ def _steering_calib(motor, use_reversed):
     motor.save()
     motor.reboot()
 
-    print("Testing axis0, the turning motor.")
-    input("Press ENTER when ready. Alternatively, press CTRL + C to quit.")
-    motor.test_axis0()
+    # print("Testing axis0, the turning motor.")
+    # input("Press ENTER when ready. Alternatively, press CTRL + C to quit.")
+    # motor.test_axis0()
 
 def _drive_calib(motor):
     # STEP 6: Calibrate the drive motor
@@ -484,9 +501,9 @@ def _drive_calib(motor):
     motor.save()
     motor.reboot()
 
-    print("Testing axis1, the driving motor.")
-    input("Press ENTER when ready. Alternatively, press CTRL + C to quit.")
-    motor.test_axis1()
+    # print("Testing axis1, the driving motor.")
+    # input("Press ENTER when ready. Alternatively, press CTRL + C to quit.")
+    # motor.test_axis1()
 
 def _can_calib(motor, can_id_axis_0, can_id_axis_1):
     motor.axis0.config.can.node_id = can_id_axis_0
@@ -516,7 +533,7 @@ def set_closed_loop_control(axis0Active, axis1Active):
 # ORANGE MOTOR
 def orange_steering_calib():
     motor = MotorConfig()
-    _steering_calib(motor, True)
+    _steering_calib(motor, False)
 
 def orange_drive_calib():
     motor = MotorConfig()
@@ -524,7 +541,7 @@ def orange_drive_calib():
 
 def orange_full_calib():
     motor = MotorConfig()
-    _steering_calib(motor, True)
+    _steering_calib(motor, False)
     motor.set_idle(0)
     _can_calib(motor, BL_ANGLE_CAN_ID, BL_VEL_CAN_ID)
     _drive_calib(motor)

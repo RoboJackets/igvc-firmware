@@ -15,9 +15,9 @@
 
 constexpr int SERVER_PORT = 5333;
 constexpr int BUFFER_SIZE = 256;
-constexpr const char *MBED_IP = "192.168.1.20";
+constexpr const char *MBED_IP = "192.168.8.20";
 constexpr const char *NETMASK = "255.255.255.0";
-constexpr const char *COMPUTER_IP = "192.168.1.21";
+constexpr const char *COMPUTER_IP = "192.168.8.21";
 
 class ParseProtobufMbed {
     private:
@@ -26,7 +26,7 @@ class ParseProtobufMbed {
         TCPSocket *serverSocket;
         TCPSocket *clientSocket; 
 
-        RequestMessage requestMessage;
+//        RequestMessage requestMessage;
         bool request_message_ready = false;
 
         int setupMbedIP();
@@ -37,7 +37,7 @@ class ParseProtobufMbed {
         void disconnect();
         bool is_connected();
         void sendMbedMessage();
-        bool recieveComputerMessage();
+        RequestMessage recieveComputerMessage();
         void getMbedIPAddress();
         void getComputerIPAddress();
         bool requestHasFib();
