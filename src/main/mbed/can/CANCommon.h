@@ -17,8 +17,14 @@
 #define BR_ANGLE_CAN_ID 0X23
 #define BR_VEL_CAN_ID   0X25
 
-#define CAN_CMD_SET_VEL 0x00D
-#define CAN_CMD_SET_POS 0x00C
+#define CAN_CMD_SET_VEL         0x00D
+#define CAN_CMD_SET_POS         0x00C
+#define CAN_CMD_SET_AXIS_STATE  0x007
+#define CAN_CMD_CLEAR_ERROR     0x018
+
+#define AXIS_STATE_IDLE         0x001
+#define AXIS_STATE_CONTROL      0x008
+#define AXIS_STATE_CALIB        0x003
 
 class CANCommon {
 
@@ -29,7 +35,7 @@ public:
     CANCommon(CAN *_can);
     int generateCANMessage(int canID, int cmdID);
     void sendCANMessage(int message);
-    void sendCANMessage(int message, char *payload, uint payload_length);
+    int sendCANMessage(int message, char *payload, uint payload_length);
 };
 
 

@@ -3,20 +3,25 @@
 #include "rtos.h"
 
 #include <chrono>
+#include <thread>
+#include <math.h>
 
 #include "can_helper.h"
 #include "communication/ParseProtobufMbed.h"
 #include "can/CANCommon.h"
 #include "motors/MotorCommand.h"
 
-Ticker ticker;
-Ticker printTimer;
+//Ticker ticker;
+//Ticker printTimer;
+Timer timer;
 
 DigitalOut led1(LED1);
 DigitalOut led2(LED2);
 DigitalIn sw1(p8);
 
 CAN can(p9, p10);
+
+BufferedSerial pc(p13, p14); // tx, rx
 
 char counter = 0;
 
@@ -41,6 +46,7 @@ void handle_print(ParseProtobufMbed *eth);
 
 ParseProtobufMbed eth;
 CANCommon canCommon(&can);
+MotorCommand motorCommand;
 
 Mutex request_message_mutex;
 
@@ -58,37 +64,73 @@ Thread print_thread;
 
 bool first = true;
 
-
 int main() {
+
+//    while (!can.frequency(500000)) {
+//        printf("Error establishing can bus!\n");
+//        ThisThread::sleep_for(1000);
+//        led1 = !led1;
+//    }
+//    pc.baud(9600);
+    can.frequency(500000);
 
     data.eth = &eth;
     data.canCommon = &canCommon;
 
+CONNECT:
     led1 = 1;
     led2 = 1;
-
-    printf("main()\n");
-
     eth.connect();
+    led1 = 0;
+    led2 = 0;
+//    timer.start();
+
+    //    motorCommand.steeringMotorStartup(&canCommon);
 
     // Cannot start a print thread
     // Not enough memory
     // print_thread.start(callback(handle_print, &eth));
 
-    ethernet_thread.start(mbed::callback(handle_ethernet, &eth));
-    can_thread.start(mbed::callback(handle_can_new, &data));
-    
-    led1 = 0;
-    led2 = 0;
-
+//    ethernet_thread.start(mbed::callback(handle_ethernet, &eth));
+//    can_thread.start(mbed::callback(handle_can_new, &data));
     // handle_print(&eth);
 
-    while (true) {}
+    while (true) {
 
-    int printCount1 = 0;
-    int printCount2 = 0;
-    int count = 0;
-    
+        // true on success, false on failure
+        RequestMessage requestMessage = eth.recieveComputerMessage();
+
+        if (requestMessage.has_buffer && requestMessage.buffer == -1) {
+            // Computer disconnected
+//            eth.disconnect();
+            break;
+        }
+
+        // this means a valid message was recv
+        if (false) {
+            printf("Decoding failed\n");
+            eth.sendMbedMessage();
+            continue;
+        }
+
+//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 1);
+//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 2);
+//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 3);
+//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 4);
+//
+//        motorCommand.sendSteerMessage(requestMessage, &canCommon, 1);
+//        motorCommand.sendSteerMessage(requestMessage, &canCommon, 2);
+//        motorCommand.sendSteerMessage(requestMessage, &canCommon, 3);
+//        motorCommand.sendSteerMessage(requestMessage, &canCommon, 4);
+
+//        motorCommand.arduinoSetAngle(M_PI, &can);
+        motorCommand.arduinoSetAngle(requestMessage.fl_velocity, &can);
+
+        eth.sendMbedMessage();
+    }
+
+    goto CONNECT;
+
 //    while (true) {
 //
 //        // Print out thread information
@@ -193,69 +235,97 @@ int main() {
 //    }
 //}
 
-void handle_ethernet(ParseProtobufMbed *eth) {
-    while (true){
-
-        request_message_mutex.lock();
-        while (mbed_idle == false) {
-            mbed_idle_cond.wait();
-        }
-
-        bool no_errors = eth->recieveComputerMessage();
-
-        // this means a valid message was recv
-        if (no_errors) {
-            // wait until the mbed is finished handling the request
-
-            mbed_idle = false;
-            message_recv = true;
-
-            message_recv_cond.notify_all();
-            request_message_mutex.unlock();
-
-            continue;
-        }
-
-        request_message_mutex.unlock();
-
-        ThisThread::sleep_for(100);
-    }
-}
-
-void handle_can_new(thread_data *data) {
-
-    ParseProtobufMbed *eth = data->eth;
-    CANCommon *canCommon = data->canCommon;
-
-    can.frequency(500000);
-
-    while (true) {
-
-        // wait until we have recv a message
-        request_message_mutex.lock();
-        while (message_recv == false) {
-            message_recv_cond.wait();
-        }
-
-        // led indicator
+//void handle_ethernet(ParseProtobufMbed *eth) {
+//    while (true){
+//
+//        request_message_mutex.lock();
+//        while (mbed_idle == false) {
+//            mbed_idle_cond.wait();
+//        }
+//
 //        led1 = 1;
+//
+//        // true on success, false on failure
+//        bool no_errors = eth->recieveComputerMessage();
+//
+////        printf("%d\n", no_errors);
+////
+////        int fl_vel = eth->getRequestMessage()->fl_velocity;
+////        int bl_vel = eth->getRequestMessage()->bl_velocity;
+//
+////        if (no_errors) {
+////            printf("fl vel: 0x%x\n", fl_vel);
+////            printf("bl vel: 0x%x\n", bl_vel);
+////        }
+//
+//        // this means a valid message was recv
+//        if (no_errors) {
+//            // wait until the mbed is finished handling the request
+//
+////            printf("ERROR!\n");
+//            mbed_idle = false;
+//            message_recv = true;
+//
+//            message_recv_cond.notify_all();
+//
+////            continue;
+//        } else {
+//            eth->sendMbedMessage();
+//            continue;
+//        }
+//
+//        request_message_mutex.unlock();
+//
+//        request_message_mutex.lock();
+//        while (mbed_idle == false) {
+//            mbed_idle_cond.wait();
+//        }
+//
+//        led2 = 1;
+//
+//        eth->sendMbedMessage();
+//
+//        request_message_mutex.unlock();
+//
+//        led1 = 0;
+//        led2 = 0;
+//
+////        ThisThread::sleep_for(100);
+//    }
+//}
 
-        // process the message
-        MotorCommand motorCommand(eth, canCommon);
-        motorCommand.sendMotorMessages();
-//        motorCommand.printMotorMessages();
-
-        // we are done processing the message; notify the ethernet thread
-
-        mbed_idle = true;
-        message_recv = false;
-
-        mbed_idle_cond.notify_all();
-        request_message_mutex.unlock();
-    }
-}
-
-
+//void handle_can_new(thread_data *data) {
+//
+//    ParseProtobufMbed *eth = data->eth;
+//    CANCommon *canCommon = data->canCommon;
+//
+//    can.frequency(500000);
+//
+//    while (true) {
+//
+//        // wait until we have recv a message
+//        request_message_mutex.lock();
+//        while (message_recv == false) {
+//            message_recv_cond.wait();
+//        }
+//
+//        // led indicator
+//        led1 = 0;
+//
+////        // process the message
+////        MotorCommand motorCommand(eth, canCommon);
+//////        motorCommand.sendMotorMessages(eth, canCommon);
+////        motorCommand.printMotorMessages();
+//
+//        // we are done processing the message; notify the ethernet thread
+//
+//        mbed_idle = true;
+//        message_recv = false;
+//
+//        mbed_idle_cond.notify_all();
+//        request_message_mutex.unlock();
+//    }
+//}
 
 //void handle_can(ParseProtobufMbed *eth) {
 //    // Ticker

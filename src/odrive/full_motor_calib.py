@@ -44,7 +44,8 @@ class MotorConfig:
         self.axis0.motor.config.calibration_current = 20
 
         # axis.encoder.config
-        self.axis0.encoder.config.cpr = 819
+        # self.axis0.encoder.config.cpr = 819
+        self.axis0.encoder.config.cpr = 82
         self.axis0.encoder.config.mode = ENCODER_MODE_INCREMENTAL
 
         # self.axis0.encoder.config.find_idx_on_lockin_only = True

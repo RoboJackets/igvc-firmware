@@ -46,6 +46,9 @@ void ParseProtobufMbed::sendMbedMessage() {
     response.lidar2 = static_cast<uint32_t>(distances[2]);
     */
 
+   response.has_test = true;
+   response.test = 16;
+
     // Encode the protobuffer
     pb_encode(&ostream, ResponseMessage_fields, &response);
     response_length = ostream.bytes_written;
@@ -54,7 +57,7 @@ void ParseProtobufMbed::sendMbedMessage() {
     clientSocket->send(reinterpret_cast<char*>(responsebuffer), response_length);
 }
 
-bool ParseProtobufMbed::recieveComputerMessage() {
+RequestMessage ParseProtobufMbed::recieveComputerMessage() {
     
     char buffer[BUFFER_SIZE];
 
@@ -62,17 +65,19 @@ bool ParseProtobufMbed::recieveComputerMessage() {
     // int n = clientSocket->recv(buffer, bufferSize - 1);
     // int n = clientSocket->recv(buffer, sizeof(buffer) - 1);
     int n = clientSocket->recv(buffer, sizeof(buffer) - 1);
-    // printf("Buffer Size: %d\n", n);
-
-    if (n == 0) {
-//        return n;
-        return false;
-    }
-
-    // printf("Buffer Size: %d \n", n);
+//    printf("Buffer Size: %d\n", n);
 
     /* protobuf message to hold request from client */
-    requestMessage = RequestMessage_init_zero;
+    RequestMessage requestMessage = RequestMessage_init_zero;
+
+    if (n < 0) {
+        return requestMessage;
+    } else if (n == 0) {
+        requestMessage.has_buffer = true;
+        requestMessage.buffer = -1;
+        return requestMessage;
+    }
+
 
     /* Create a stream that reads from the buffer. */
     pb_istream_t istream =
@@ -82,7 +87,6 @@ bool ParseProtobufMbed::recieveComputerMessage() {
 
     /* decode the message */
     bool istatus = pb_decode(&istream, RequestMessage_fields, &requestMessage);
-
     
 //    if (requestMessage.has_axis_id == true) {
         // printf("Command!\n");
@@ -96,12 +100,12 @@ bool ParseProtobufMbed::recieveComputerMessage() {
     }
 
 //    return n;
-    return istatus;
-}
-
-RequestMessage ParseProtobufMbed::getRequestMessage() {
     return requestMessage;
 }
+
+//RequestMessage ParseProtobufMbed::getRequestMessage() {
+//    return requestMessage;
+//}
 
 int ParseProtobufMbed::setupMbedIP() {
 

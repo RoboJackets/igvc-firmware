@@ -1,17 +1,30 @@
 syntax = "proto2";
 
 message ResponseMessage {
-    optional uint32 fibResponse = 1;
+    optional uint32 test = 1;
 }
 
 message RequestMessage {
-    optional float fl_velocity = 1;
-    optional float fr_velocity = 2;
-    optional float bl_velocity = 3;
-    optional float br_velocity = 4;
-    optional float fl_angle = 5;
-    optional float fr_angle = 6;
-    optional float bl_angle = 7;
-    optional float br_angle = 8;
-    optional float duration = 9;
+    optional float buffer = 1;
+    optional float fl_velocity = 2;
+    optional float fr_velocity = 3;
+    optional float bl_velocity = 4;
+    optional float br_velocity = 5;
+    optional float fl_angle = 6;
+    optional float fr_angle = 7;
+    optional float bl_angle = 8;
+    optional float br_angle = 9;
+    optional float duration = 10;
 }
+
+//message RequestMessage {
+//    optional float duration = 1;
+//    optional float fl_velocity = 2;
+//    optional float fr_velocity = 3;
+//    optional float bl_velocity = 4;
+//    optional float br_velocity = 5;
+//    optional float fl_angle = 6;
+//    optional float fr_angle = 7;
+//    optional float bl_angle = 8;
+//    optional float br_angle = 9;
+//}
