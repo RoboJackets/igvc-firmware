@@ -24,6 +24,7 @@
 
 #define AXIS_STATE_IDLE         0x001
 #define AXIS_STATE_CONTROL      0x008
+#define AXIS_STATE_CALIB        0x003
 
 class CANCommon {
 

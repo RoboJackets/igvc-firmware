@@ -25,12 +25,18 @@ private:
     uint motorPayloads[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     int motorCANMessagesSize = 0;
 
+    void _calibrateSteeringMotor(CANCommon *_canCommon, int motorNum);
     void _enableSteeringMotor(CANCommon *_canCommon, int motorNum);
 
 public:
-
+    // constructor
     MotorCommand();
-    void enableSteeringMotors(CANCommon *_canCommon);
+
+    // must be done on all steering motors before operation
+    void steeringMotorStartup(CANCommon *_canCommon);
+    void setAngle(float rot, CANCommon *_canCommon, int motorNum);
+    void arduinoSetAngle(float rot, CAN *can);
+
     void newSendMotorMessages(RequestMessage requestMessage, CANCommon *_canCommon, int motorNum);
     void sendSteerMessage(RequestMessage requestMessage, CANCommon *_canCommon, int motorNum);
     void sendMotorMessages(RequestMessage requestMessage, CANCommon *_canCommon);

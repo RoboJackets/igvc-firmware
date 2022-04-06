@@ -10,6 +10,7 @@
 #include <SPI.h>          //SPI is used to talk to the CAN Controller
 #include <mcp_can.h>
 #include "mcp2515_can.h"
+#include "mcp2515_can_dfs.h"
 mcp2515_can CAN(10); // Set CS pin
 
 

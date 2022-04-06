@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <thread>
+#include <math.h>
 
 #include "can_helper.h"
 #include "communication/ParseProtobufMbed.h"
@@ -19,6 +20,8 @@ DigitalOut led2(LED2);
 DigitalIn sw1(p8);
 
 CAN can(p9, p10);
+
+BufferedSerial pc(p13, p14); // tx, rx
 
 char counter = 0;
 
@@ -61,20 +64,28 @@ Thread print_thread;
 
 bool first = true;
 
-
 int main() {
+
+//    while (!can.frequency(500000)) {
+//        printf("Error establishing can bus!\n");
+//        ThisThread::sleep_for(1000);
+//        led1 = !led1;
+//    }
+//    pc.baud(9600);
+    can.frequency(500000);
 
     data.eth = &eth;
     data.canCommon = &canCommon;
 
+CONNECT:
     led1 = 1;
     led2 = 1;
-
-    printf("main()\n");
-
     eth.connect();
-    can.frequency(500000);
-    timer.start();
+    led1 = 0;
+    led2 = 0;
+//    timer.start();
+
+    //    motorCommand.steeringMotorStartup(&canCommon);
 
     // Cannot start a print thread
     // Not enough memory
@@ -82,21 +93,18 @@ int main() {
 
 //    ethernet_thread.start(mbed::callback(handle_ethernet, &eth));
 //    can_thread.start(mbed::callback(handle_can_new, &data));
-    
-    led1 = 0;
     // handle_print(&eth);
-
-    motorCommand.enableSteeringMotors(&canCommon);
-
-    ThisThread::sleep_for(5000);
-    led2 = 0;
-
-//    while (true) {}
 
     while (true) {
 
         // true on success, false on failure
         RequestMessage requestMessage = eth.recieveComputerMessage();
+
+        if (requestMessage.has_buffer && requestMessage.buffer == -1) {
+            // Computer disconnected
+//            eth.disconnect();
+            break;
+        }
 
         // this means a valid message was recv
         if (false) {
@@ -105,23 +113,24 @@ int main() {
             continue;
         }
 
-        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 1);
-        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 2);
-        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 3);
-        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 4);
+//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 1);
+//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 2);
+//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 3);
+//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 4);
+//
+//        motorCommand.sendSteerMessage(requestMessage, &canCommon, 1);
+//        motorCommand.sendSteerMessage(requestMessage, &canCommon, 2);
+//        motorCommand.sendSteerMessage(requestMessage, &canCommon, 3);
+//        motorCommand.sendSteerMessage(requestMessage, &canCommon, 4);
 
-        motorCommand.sendSteerMessage(requestMessage, &canCommon, 1);
-        motorCommand.sendSteerMessage(requestMessage, &canCommon, 2);
-        motorCommand.sendSteerMessage(requestMessage, &canCommon, 3);
-        motorCommand.sendSteerMessage(requestMessage, &canCommon, 4);
+//        motorCommand.arduinoSetAngle(M_PI, &can);
+        motorCommand.arduinoSetAngle(requestMessage.fl_velocity, &can);
 
         eth.sendMbedMessage();
     }
 
-    int printCount1 = 0;
-    int printCount2 = 0;
-    int count = 0;
-    
+    goto CONNECT;
+
 //    while (true) {
 //
 //        // Print out thread information

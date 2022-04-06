@@ -58,7 +58,7 @@ class MotorConfig:
 
         # axis.motor.config
         self.axis0.motor.config.pole_pairs = 7
-        self.axis0.motor.config.current_lim = 50
+        self.axis0.motor.config.current_lim = 20
         self.axis0.motor.config.calibration_current = 20
 
         # axis.encoder.config
@@ -599,10 +599,10 @@ def brown_steering_calib():
 def brown_drive_calib():
     motor = MotorConfig()
     _drive_calib(motor)
+    _can_calib(motor, FR_ANGLE_CAN_ID, FR_VEL_CAN_ID)
 
 def brown_full_calib():
     motor = MotorConfig()
-
     _steering_calib(motor, False)
     motor.set_idle(0)
     _can_calib(motor, FR_ANGLE_CAN_ID, FR_VEL_CAN_ID)

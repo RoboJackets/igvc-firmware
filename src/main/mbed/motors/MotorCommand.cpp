@@ -15,11 +15,45 @@ MotorCommand::MotorCommand() {
 
 }
 
+void MotorCommand::steeringMotorStartup(CANCommon *_canCommon) {
+    // full calib sequence
+    for (int i = 1; i <= 4; i++) {
+        _calibrateSteeringMotor(_canCommon, i);
+    }
+    ThisThread::sleep_for(15000);
 
-void MotorCommand::enableSteeringMotors(CANCommon *_canCommon) {
+    // control mode ON
     for (int i = 1; i <= 4; i++) {
         _enableSteeringMotor(_canCommon, i);
     }
+    ThisThread::sleep_for(1000);
+
+    // position 0
+    for (int i = 1; i <= 4; i++) {
+        setAngle(0, _canCommon, i);
+    }
+    ThisThread::sleep_for(3000);
+
+}
+
+void MotorCommand::_calibrateSteeringMotor(CANCommon *_canCommon, int motorNum) {
+
+    int steerCanId = 0;
+
+    if (motorNum == 1) {
+        steerCanId = FL_ANGLE_CAN_ID;
+    } else if (motorNum == 2) {
+        steerCanId = BL_ANGLE_CAN_ID;
+    } else if (motorNum == 3) {
+        steerCanId = FR_ANGLE_CAN_ID;
+    } else {
+        steerCanId = BR_ANGLE_CAN_ID;
+    }
+
+    // send command to steering motor
+    int controlId = _canCommon->generateCANMessage(steerCanId, CAN_CMD_SET_AXIS_STATE);
+    uint controlPayload = AXIS_STATE_CALIB;
+    _canCommon->sendCANMessage(controlId, (char*)&controlPayload, 32);
 }
 
 void MotorCommand::_enableSteeringMotor(CANCommon *_canCommon, int motorNum) {
@@ -43,6 +77,55 @@ void MotorCommand::_enableSteeringMotor(CANCommon *_canCommon, int motorNum) {
     motorIsIdle[2 * (motorNum - 1) + 1] = false;
 }
 
+void MotorCommand::setAngle(float rot, CANCommon *_canCommon, int motorNum) {
+
+    int steerCanId = 0;
+
+    if (motorNum == 1) {
+        steerCanId = FL_ANGLE_CAN_ID;
+    } else if (motorNum == 2) {
+        steerCanId = BL_ANGLE_CAN_ID;
+    } else if (motorNum == 3) {
+        steerCanId = FR_ANGLE_CAN_ID;
+    } else {
+        steerCanId = BR_ANGLE_CAN_ID;
+    }
+
+    // ensure -1 * M_PI <= rot <= M_PI
+    if (rot > M_PI) {
+        rot = M_PI;
+    } else if (rot < -1 * M_PI) {
+        rot = -1 * M_PI;
+    }
+
+    // convert rot to turns, multiply by 100 (the gear ratio)
+    rot *= (100) * (1.0 / (2.0 * M_PI));
+
+    int rotId = _canCommon->generateCANMessage(steerCanId, CAN_CMD_SET_POS);
+    uint rotPayload = *(unsigned int*)&rot;
+    _canCommon->sendCANMessage(rotId, (char*)&rotPayload, 32);
+}
+
+void MotorCommand::arduinoSetAngle(float rot, CAN *can) {
+    int steerCanId = 0x8;
+
+    // ensure -1 * M_PI <= rot <= M_PI
+    if (rot > M_PI) {
+        rot = M_PI;
+    } else if (rot < -1 * M_PI) {
+        rot = -1 * M_PI;
+    }
+
+//    int rotId = _canCommon->generateCANMessage(steerCanId, CAN_CMD_SET_POS);
+//    pc->printf("%d", rotId);
+//    uint rotPayload = *(unsigned int*)&rot;
+//    _canCommon->sendCANMessage(rotId, (char*)&rotPayload, 32);
+
+    uint rotPayload = *(unsigned int*)&rot;
+    can->write(CANMessage(0x100, (char *)&rotPayload, 4));
+    ThisThread::sleep_for(5);
+}
+
 void MotorCommand::sendSteerMessage(RequestMessage requestMessage, CANCommon *_canCommon, int motorNum) {
 
     float rot = 0;
@@ -64,18 +147,6 @@ void MotorCommand::sendSteerMessage(RequestMessage requestMessage, CANCommon *_c
 
     // convert rot to turns, multiply by 100 (the gear ratio)
     rot *= (100) * (1.0 / (2.0 * M_PI));
-
-//    // send command to steering motor
-//    if (motorIsIdle[2 * (motorNum - 1) + 1]) {
-//        int controlId = _canCommon->generateCANMessage(steerCanId, CAN_CMD_SET_AXIS_STATE);
-//        uint controlPayload = AXIS_STATE_CONTROL;
-//        _canCommon->sendCANMessage(controlId, (char*)&controlPayload, 32);
-//        motorIsIdle[2 * (motorNum - 1) + 1] = false;
-//    } else {
-//        int rotId = _canCommon->generateCANMessage(steerCanId, CAN_CMD_SET_POS);
-//        uint rotPayload = *(unsigned int*)&rot;
-//        _canCommon->sendCANMessage(rotId, (char*)&rotPayload, 32);
-//    }
 
     int rotId = _canCommon->generateCANMessage(steerCanId, CAN_CMD_SET_POS);
     uint rotPayload = *(unsigned int*)&rot;

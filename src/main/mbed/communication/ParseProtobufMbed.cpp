@@ -67,13 +67,17 @@ RequestMessage ParseProtobufMbed::recieveComputerMessage() {
     int n = clientSocket->recv(buffer, sizeof(buffer) - 1);
 //    printf("Buffer Size: %d\n", n);
 
-    if (n <= 0) {
-//        return n;
-        return RequestMessage_init_zero;
-    }
-
     /* protobuf message to hold request from client */
     RequestMessage requestMessage = RequestMessage_init_zero;
+
+    if (n < 0) {
+        return requestMessage;
+    } else if (n == 0) {
+        requestMessage.has_buffer = true;
+        requestMessage.buffer = -1;
+        return requestMessage;
+    }
+
 
     /* Create a stream that reads from the buffer. */
     pb_istream_t istream =
