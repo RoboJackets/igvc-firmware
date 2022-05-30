@@ -11,9 +11,18 @@
 #include "can/CANCommon.h"
 #include "motors/MotorCommand.h"
 
+using namespace std::chrono;
+
 //Ticker ticker;
 //Ticker printTimer;
 Timer timer;
+
+EncoderEstimates encoderEstimates;
+CANMessage msg;
+int id_mask = 0b11111;
+ResponseMessageData responseMessageData;
+float dur = 0;
+float br_est = 0;
 
 DigitalOut led1(LED1);
 DigitalOut led2(LED2);
@@ -39,6 +48,7 @@ typedef struct _thread_data {
 
 thread_data data;
 
+
 void handle_ethernet(ParseProtobufMbed *eth);
 void handle_can(ParseProtobufMbed *eth);
 void handle_can_new(thread_data *data);
@@ -61,6 +71,8 @@ ConditionVariable message_recv_cond(request_message_mutex);
 Thread ethernet_thread;
 Thread can_thread;
 Thread print_thread;
+
+Timer durationTimer;
 
 bool first = true;
 
@@ -100,23 +112,67 @@ CONNECT:
         // true on success, false on failure
         RequestMessage requestMessage = eth.recieveComputerMessage();
 
+        // Timer
+        durationTimer.reset();
+        durationTimer.start();
+
         if (requestMessage.has_buffer && requestMessage.buffer == -1) {
             // Computer disconnected
-//            eth.disconnect();
-            break;
+            while (1);
         }
 
-        // this means a valid message was recv
-        if (false) {
-            printf("Decoding failed\n");
-            eth.sendMbedMessage();
-            continue;
+
+        // // this means a valid message was recv
+        // if (false) {
+        //     printf("Decoding failed\n");
+        //     // eth.sendMbedMessage();
+        //     continue;
+        // }
+
+        if (requestMessage.has_duration) {
+            led2 = !led2;
+        } else {
+            led2 = 0;
         }
 
-//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 1);
-//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 2);
-//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 3);
-//        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 4);
+        // Get encoder estimates
+        motorCommand.getEncoderEstimates(&responseMessageData, &canCommon);
+        
+        // // TEST to ensure encoders are working
+        // if (can.read(msg)) {
+
+        //     int id = msg.id >> 5;
+        //     int cmd = msg.id & id_mask;
+
+        //     // // DEBUG
+        //     // printf("Message len: %d\n", msg.len);
+        //     // printf("Message received!\n \
+        //     //     \tID: %x\n \
+        //     //     \tCMD: %x\n \
+        //     //     \tData: %x, %x, %x, %x\n", 
+        //     //     id, cmd, msg.data[0], msg.data[1], msg.data[2], msg.data[3]);
+
+        //     // make sure its an encoder estimate message
+        //     if (id == 0x25 && cmd == 0x9) {
+        //         responseMessageData.br_velocity_est = (BR_DIR) * (*(float *)&msg.data[4]);
+        //     }
+        // }
+
+        // Stop timer
+        responseMessageData.duration = (durationTimer.elapsed_time()).count();
+
+        // Send motor messages
+        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 1); 
+        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 2);
+        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 3);
+        motorCommand.newSendMotorMessages(requestMessage, &canCommon, 4);
+
+    // // DEBUG
+    //    printf("FL %d vel\n", (int)(requestMessage.fl_velocity * 100));
+
+        // // start timer
+        durationTimer.reset();
+        durationTimer.start();
 //
 //        motorCommand.sendSteerMessage(requestMessage, &canCommon, 1);
 //        motorCommand.sendSteerMessage(requestMessage, &canCommon, 2);
@@ -124,9 +180,11 @@ CONNECT:
 //        motorCommand.sendSteerMessage(requestMessage, &canCommon, 4);
 
 //        motorCommand.arduinoSetAngle(M_PI, &can);
-        motorCommand.arduinoSetAngle(requestMessage.fl_velocity, &can);
+        // motorCommand.arduinoSetAngle(requestMessage.fl_velocity, &can);
 
-        eth.sendMbedMessage();
+        eth.sendMbedMessage(responseMessageData);
+        ThisThread::sleep_for(10);
+        // eth.sendMbedMessage();
     }
 
     goto CONNECT;

@@ -17,7 +17,16 @@ constexpr int SERVER_PORT = 5333;
 constexpr int BUFFER_SIZE = 256;
 constexpr const char *MBED_IP = "192.168.8.20";
 constexpr const char *NETMASK = "255.255.255.0";
-constexpr const char *COMPUTER_IP = "192.168.8.21";
+constexpr const char *COMPUTER_IP = "192.168.8.106";
+
+typedef struct _ResponseMessageData {
+    float fl_velocity_est;
+    float bl_velocity_est;
+    float fr_velocity_est;
+    float br_velocity_est;
+    float duration;
+} ResponseMessageData;
+
 
 class ParseProtobufMbed {
     private:
@@ -36,7 +45,7 @@ class ParseProtobufMbed {
         int connect(); 
         void disconnect();
         bool is_connected();
-        void sendMbedMessage();
+        void sendMbedMessage(ResponseMessageData responseMessageData);
         RequestMessage recieveComputerMessage();
         void getMbedIPAddress();
         void getComputerIPAddress();

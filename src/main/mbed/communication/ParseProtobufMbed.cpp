@@ -22,7 +22,7 @@ bool ParseProtobufMbed::is_connected() {
     return true;
 }
 
-void ParseProtobufMbed::sendMbedMessage() {
+void ParseProtobufMbed::sendMbedMessage(ResponseMessageData responseMessageData) {
     /* protocol buffer to hold response message */
     ResponseMessage response = ResponseMessage_init_zero;
     
@@ -35,19 +35,36 @@ void ParseProtobufMbed::sendMbedMessage() {
     pb_ostream_t ostream =
         pb_ostream_from_buffer(responsebuffer, sizeof(responsebuffer));
    
-   /*
-    int *distances = LidarLiteController::getDistanceArr();
+//    // Response Message Test
+//    response.has_test = true;
+// //    response.test = 16;
+//     response.test = (uint32_t)responseMessageData.duration;
 
-    // Fill out the message
-    response.has_lidar1 = true;
-    response.has_lidar2 = true;
 
-    response.lidar1 = static_cast<uint32_t>(distances[0]);
-    response.lidar2 = static_cast<uint32_t>(distances[2]);
-    */
+    // TODO
+    response.has_buffer             = false;
+    response.has_fl_velocity_est    = true;
+    response.has_fr_velocity_est    = true;
+    response.has_bl_velocity_est    = true;
+    response.has_br_velocity_est    = true;
+    response.has_fl_angle_est       = false;
+    response.has_fr_angle_est       = false;
+    response.has_bl_angle_est       = false;
+    response.has_br_angle_est       = false;
+    response.has_duration           = true;
 
-   response.has_test = true;
-   response.test = 16;
+    response.duration = responseMessageData.duration;
+
+    response.fl_velocity_est = responseMessageData.fl_velocity_est;
+    response.fr_velocity_est = responseMessageData.fr_velocity_est;
+    response.bl_velocity_est = responseMessageData.bl_velocity_est;
+    response.br_velocity_est = responseMessageData.br_velocity_est;
+
+    // // DEBUG
+    // uint durPrint = *(unsigned int*)&responseMessageData.duration;
+    // uint encPrint = *(unsigned int*)&responseMessageData.br_velocity_est;
+    // printf("DUR: 0x%x\n", durPrint);
+    // printf("ENC: 0x%x\n", encPrint);
 
     // Encode the protobuffer
     pb_encode(&ostream, ResponseMessage_fields, &response);

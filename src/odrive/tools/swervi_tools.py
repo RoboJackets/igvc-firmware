@@ -25,58 +25,58 @@ class MotorConfig:
 
     def configure_brake_resistor(self):
         print("Configuring the brake resistor...")
-        self.odrv.config.enable_brake_resistor = True
+        # self.odrv.config.enable_brake_resistor = True
         self.odrv.config.brake_resistance = 2
         self.odrv.config.dc_max_negative_current = -0.010
 
-    def configure_axis0_motor(self, use_reversed):
-        print("Configuring axis0, the steering motor...")
-        # Change this to change direction of index search
-        # self.axis0.config.calibration_lockin.accel = -20
-        # self.axis0.config.calibration_lockin.vel = 40
-        # self.axis0.config.calibration_lockin.ramp_distance = 3.14
+    # def configure_axis0_motor(self, use_reversed):
+    #     print("Configuring axis0, the steering motor...")
+    #     # Change this to change direction of index search
+    #     # self.axis0.config.calibration_lockin.accel = -20
+    #     # self.axis0.config.calibration_lockin.vel = 40
+    #     # self.axis0.config.calibration_lockin.ramp_distance = 3.14
 
-    # self.axis0.encoder.config.direction = -1
+    # # self.axis0.encoder.config.direction = -1
 
-        # axis.controller.config
-        self.axis0.controller.config.vel_limit = 20
-        # self.axis0.controller.input_vel = 0
+    #     # axis.controller.config
+    #     self.axis0.controller.config.vel_limit = 20
+    #     # self.axis0.controller.input_vel = 0
 
-        # # POSITION CONTROL
-        # self.axis0.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
+    #     # # POSITION CONTROL
+    #     # self.axis0.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
 
-        # FILTERED POSITION CONTROL
-        self.axis0.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
-        self.axis0.controller.config.input_filter_bandwidth = 3.0
-        self.axis0.controller.config.input_mode = INPUT_MODE_POS_FILTER
+    #     # FILTERED POSITION CONTROL
+    #     self.axis0.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
+    #     self.axis0.controller.config.input_filter_bandwidth = 3.0
+    #     self.axis0.controller.config.input_mode = INPUT_MODE_POS_FILTER
 
-        # # TRAJECTORY CONTROL
-        # self.axis0.trap_traj.config.vel_limit = 5
-        # self.axis0.trap_traj.config.accel_limit = 0.05
-        # self.axis0.trap_traj.config.decel_limit = 0.05
-        # self.axis0.controller.config.inertia = 0
+    #     # # TRAJECTORY CONTROL
+    #     # self.axis0.trap_traj.config.vel_limit = 5
+    #     # self.axis0.trap_traj.config.accel_limit = 0.05
+    #     # self.axis0.trap_traj.config.decel_limit = 0.05
+    #     # self.axis0.controller.config.inertia = 0
 
-        # axis.motor.config
-        self.axis0.motor.config.pole_pairs = 7
-        self.axis0.motor.config.current_lim = 20
-        self.axis0.motor.config.calibration_current = 20
+    #     # axis.motor.config
+    #     self.axis0.motor.config.pole_pairs = 7
+    #     self.axis0.motor.config.current_lim = 20
+    #     self.axis0.motor.config.calibration_current = 20
 
-        # axis.encoder.config
-        # self.axis0.encoder.config.cpr = 819
-        self.axis0.encoder.config.cpr = 4096
-        self.axis0.encoder.config.mode = ENCODER_MODE_INCREMENTAL
-        self.axis0.encoder.config.index_offset = 0
+    #     # axis.encoder.config
+    #     # self.axis0.encoder.config.cpr = 819
+    #     self.axis0.encoder.config.cpr = 4096
+    #     self.axis0.encoder.config.mode = ENCODER_MODE_INCREMENTAL
+    #     self.axis0.encoder.config.index_offset = 0
 
-        # self.axis0.encoder.config.find_idx_on_lockin_only = True
-        # self.axis0.encoder.config.calib_scan_distance = 1000
-        # self.axis0.config.general_lockin.finish_distance = 1000
+    #     # self.axis0.encoder.config.find_idx_on_lockin_only = True
+    #     # self.axis0.encoder.config.calib_scan_distance = 1000
+    #     # self.axis0.config.general_lockin.finish_distance = 1000
 
-        # Perform the calibration...
-        self.axis0.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
-        print("Performing motor calibration for axis0, the steering motor...")
-        input("When calibration completes, press ENTER.")
+    #     # Perform the calibration...
+    #     self.axis0.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
+    #     print("Performing motor calibration for axis0, the steering motor...")
+    #     input("When calibration completes, press ENTER.")
 
-        print("Calibrated axis0, the steering motor!")
+    #     print("Calibrated axis0, the steering motor!")
 
     def configure_axis0_index_signal(self):
         self.axis0.encoder.config.use_index = True
@@ -102,7 +102,6 @@ class MotorConfig:
     def configure_axis0_pre_calibrated(self):
         print("axis0 done calibrating! Saving settings as pre-calibrated...")
         self.axis0.encoder.config.pre_calibrated = True
-        self.axis0.config.startup_encoder_index_search = True
         self.axis0.motor.config.pre_calibrated = True
 
     def test_axis0(self):
@@ -135,6 +134,25 @@ class MotorConfig:
         self.axis1.encoder.config.pre_calibrated = True
         self.axis1.motor.config.pre_calibrated = True
 
+    def configure_axis0_motor(self):
+        # axis.controller.config
+        self.axis0.controller.config.vel_limit = 20
+        self.axis0.controller.config.control_mode = CONTROL_MODE_VELOCITY_CONTROL
+
+        # axis.motor.config
+        self.axis0.motor.config.pole_pairs = 10
+        self.axis0.motor.config.current_lim = 50
+        self.axis0.motor.config.calibration_current = 20
+
+        # axis.encoder.config
+        self.axis0.encoder.config.cpr = 60
+        self.axis0.encoder.config.mode = ENCODER_MODE_HALL
+
+        # Perform the calibration...
+        self.axis0.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
+        print("Performing motor calibration for axis1, the drive motor...")
+        input("When calibration completes, press ENTER.")
+
     def configure_axis1_motor(self):
         # axis.controller.config
         self.axis1.controller.config.vel_limit = 20
@@ -153,6 +171,7 @@ class MotorConfig:
         self.axis1.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
         print("Performing motor calibration for axis1, the drive motor...")
         input("When calibration completes, press ENTER.")
+
 
     def save(self):
         print("Saving...")
@@ -477,11 +496,42 @@ def _steering_calib(motor, use_reversed):
     # motor.test_axis0()
 
 def _drive_calib(motor):
+
+    motor.erase()
+
+    print("BEGIN SWERVE DRIVE MODULE CALIBRATION")
+    print("CONFIGURING AXIS 0: TURNING MOTOR")
+    input("Ensure that the hub motor has been dropped SWERVI. Then, press ENTER...")
+
+    # STEP 1: enable the brake resistor
+    # Save + Reboot to ensure settings are applied
+    motor.configure_brake_resistor()
+    motor.save()
+    motor.reboot()
+
     # STEP 6: Calibrate the drive motor
     print("CONFIGURING AXIS 1: DRIVE MOTOR")
     input("Fit the hub motor back onto SWERVI. "
           "Alternatively, you can also hold the hub motor upright so the wheel"
           "can spin freely.\n Then, press ENTER...")
+
+    while True:
+        motor.configure_axis0_motor()
+        errors_occurred = motor.check_for_errors(0)
+
+        if not errors_occurred:
+            break
+        else:
+            print("Motor calibration failed, retrying...")
+            motor.save()
+            motor.reboot()
+
+    # STEP 7: Set the motor and encoder to pre-calibrated
+    print("All calibration complete. Put the hub motor back onto SWERVI.")
+    input("Then, press ENTER.")
+    motor.configure_axis0_pre_calibrated()
+    motor.save()
+    motor.reboot()
 
     while True:
         motor.configure_axis1_motor()

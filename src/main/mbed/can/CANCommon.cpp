@@ -22,3 +22,11 @@ int CANCommon::sendCANMessage(int message, char *payload, uint payload_length) {
     ThisThread::sleep_for(5);
     return result;
 }
+
+void CANCommon::recvCANMessage(int canID, int canCmd, CANMessage *buffer) {
+    int message = generateCANMessage(canID, canCmd);
+    can->write(CANMessage(message));
+
+    // Keep reading until we get a message with a matching ID
+    while (!can->read(*buffer) || buffer->id != message);
+}

@@ -160,16 +160,16 @@ void MotorCommand::newSendMotorMessages(RequestMessage requestMessage, CANCommon
     int driveCanId = 0;
 
     if (motorNum == 1) {
-        vel = requestMessage.fl_velocity;
+        vel = (FL_DIR) * requestMessage.fl_velocity;
         driveCanId = FL_VEL_CAN_ID;
     } else if (motorNum == 2) {
-        vel = requestMessage.bl_velocity;
+        vel = (BL_DIR) * requestMessage.bl_velocity;
         driveCanId = BL_VEL_CAN_ID;
     } else if (motorNum == 3) {
-        vel = -1 * requestMessage.fr_velocity;
+        vel = (FR_DIR) * requestMessage.fr_velocity;
         driveCanId = FR_VEL_CAN_ID;
     } else {
-        vel = requestMessage.br_velocity;
+        vel = (BR_DIR) * requestMessage.br_velocity;
         driveCanId = BR_VEL_CAN_ID;
     }
 
@@ -370,6 +370,33 @@ void MotorCommand::translateMotorMessage(CANCommon *_canCommon) {
 //        motorPayloads[motorCANMessagesSize] = *(unsigned int*)&motorMessage.br_velocity;
 //        motorCANMessagesSize++;
 //    }
+}
+
+void MotorCommand::getEncoderEstimates(ResponseMessageData *responseMessageData, CANCommon *canCommon) {
+
+    // Declare the input buffers
+    CANMessage buffer1;
+    CANMessage buffer2;
+    CANMessage buffer3;
+    CANMessage buffer4;
+
+    // Get the encoder estimates from the Odrives
+    canCommon->recvCANMessage(FL_VEL_CAN_ID, CAN_CMD_GET_VEL_EST, &buffer1);
+    canCommon->recvCANMessage(FR_VEL_CAN_ID, CAN_CMD_GET_VEL_EST, &buffer2);
+    canCommon->recvCANMessage(BL_VEL_CAN_ID, CAN_CMD_GET_VEL_EST, &buffer3);
+    canCommon->recvCANMessage(BR_VEL_CAN_ID, CAN_CMD_GET_VEL_EST, &buffer4);
+
+    // Store the estimates in responseMessageData
+    // buffer.data is 8 bytes long; velocity info is in the top 4 bytes
+    // use pointer magic to cast the top 4 bytes into a 32 bit float
+    // In addition, take into account that some encoders are flipped, so they ouput
+    // the opposite direction.
+    responseMessageData->fl_velocity_est = (FL_DIR) * (*(float *)&buffer1.data[4]);
+    responseMessageData->fr_velocity_est = (FR_DIR) * (*(float *)&buffer2.data[4]);
+    responseMessageData->bl_velocity_est = (BL_DIR) * (*(float *)&buffer3.data[4]);
+    responseMessageData->br_velocity_est = (BR_DIR) * (*(float *)&buffer4.data[4]);
+
+    // printf("%0x\n", buffer4.id);
 }
 
 
